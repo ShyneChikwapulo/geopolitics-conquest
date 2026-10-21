@@ -4,3 +4,4 @@ export * from './soldiers';
 export * from './combat';
 export * from './setup';
 export * from './engine';
+export * from './npc';

@@ -74,6 +74,24 @@ export type Action =
   | { type: 'completeCapture'; playerId: PlayerId; move: number }
   | { type: 'endTurn'; playerId: PlayerId };
 
+export type NpcDecisionKind =
+  | 'allocate'
+  | 'transfer'
+  | 'attack'
+  | 'continue'
+  | 'stop'
+  | 'capture'
+  | 'endTurn';
+
+export interface NpcMetrics {
+  /** Probability of conquering the target from the current position (0..1). */
+  winProbability?: number;
+  /** Expected number of soldiers the attacker will still lose. */
+  expectedLosses?: number;
+  /** Utility score the NPC computed for this option. */
+  utility?: number;
+}
+
 /** Events are the single source of truth for the UI animations and the AI commentary. */
 export type GameEvent =
   | { type: 'gameStarted'; gameId: string; humanPlayerId: PlayerId; turnOrder: PlayerId[] }
@@ -132,4 +150,11 @@ export type GameEvent =
   | { type: 'attackStopped'; playerId: PlayerId; from: CountryCode; to: CountryCode }
   | { type: 'playerEliminated'; playerId: PlayerId; byPlayerId: PlayerId }
   | { type: 'turnEnded'; playerId: PlayerId }
-  | { type: 'gameWon'; playerId: PlayerId };
+  | { type: 'gameWon'; playerId: PlayerId }
+  | {
+      type: 'npcDecision';
+      playerId: PlayerId;
+      kind: NpcDecisionKind;
+      reason: string;
+      metrics?: NpcMetrics;
+    };
