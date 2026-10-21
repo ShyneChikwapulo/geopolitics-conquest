@@ -1,0 +1,23 @@
+{
+  "name": "@conquest/data",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "scripts": {
+    "build:countries": "tsx scripts/build-countries.ts",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "simulate:real": "tsx scripts/simulate-real.ts"
+  },
+  "devDependencies": {
+    "@conquest/engine": "^0.1.0",
+    "@types/node": "^26.6.5",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.5",
+    "world-atlas": "^2.0.2",
+    "world-countries": "^5.1.0"
+  }
+}
