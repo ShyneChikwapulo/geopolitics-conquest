@@ -9,7 +9,8 @@
     "build:countries": "tsx scripts/build-countries.ts",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
-    "simulate:real": "tsx scripts/simulate-real.ts"
+    "simulate:real": "tsx scripts/simulate-real.ts",
+    "report:difficulty": "tsx scripts/difficulty-report.ts"
   },
   "devDependencies": {
     "@conquest/engine": "^0.1.0",
