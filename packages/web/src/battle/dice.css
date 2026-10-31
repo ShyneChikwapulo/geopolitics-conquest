@@ -1,181 +1,136 @@
-/* ---------- scene ---------- */
+/* ---------- the die (a real 3-D cube; sized by --die so 9 pairs still fit) ---------- */
 .dice-cube-scene {
-  width: 60px;
-  height: 60px;
+  --die: 44px;
+  width: calc(var(--die) * 1.5);
+  height: calc(var(--die) * 1.5);
   perspective: 400px;
   position: relative;
   display: grid;
   place-items: center;
 }
-
 .dice-cube {
-  width: 40px;
-  height: 40px;
+  width: var(--die);
+  height: var(--die);
   position: relative;
   transform-style: preserve-3d;
   will-change: transform;
 }
-
 .dice-shadow {
   position: absolute;
-  bottom: -10px;
-  width: 34px;
-  height: 8px;
+  bottom: calc(var(--die) * -0.15);
+  width: calc(var(--die) * 0.85);
+  height: calc(var(--die) * 0.2);
   border-radius: 50%;
   background: radial-gradient(ellipse at center, rgba(0, 0, 0, 0.55) 0%, rgba(0, 0, 0, 0) 70%);
   transition: opacity 0.25s ease;
 }
 .dice-cube-scene.rolling .dice-shadow { opacity: 0.35; }
 
-/* ---------- six faces ---------- */
 .dice-face {
   position: absolute;
   inset: 0;
   background: linear-gradient(145deg, #ffffff 0%, #e2e8f0 100%);
-  border-radius: 8px;
+  border-radius: calc(var(--die) * 0.2);
   box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.06), inset 0 -3px 6px rgba(0, 0, 0, 0.12);
   display: grid;
   place-items: center;
   backface-visibility: hidden;
 }
-.dice-face.front  { transform: translateZ(20px); }
-.dice-face.back   { transform: rotateY(180deg) translateZ(20px); }
-.dice-face.right  { transform: rotateY(90deg)  translateZ(20px); }
-.dice-face.left   { transform: rotateY(-90deg) translateZ(20px); }
-.dice-face.top    { transform: rotateX(90deg)  translateZ(20px); }
-.dice-face.bottom { transform: rotateX(-90deg) translateZ(20px); }
+.dice-face.front  { transform: translateZ(calc(var(--die) / 2)); }
+.dice-face.back   { transform: rotateY(180deg) translateZ(calc(var(--die) / 2)); }
+.dice-face.right  { transform: rotateY(90deg)  translateZ(calc(var(--die) / 2)); }
+.dice-face.left   { transform: rotateY(-90deg) translateZ(calc(var(--die) / 2)); }
+.dice-face.top    { transform: rotateX(90deg)  translateZ(calc(var(--die) / 2)); }
+.dice-face.bottom { transform: rotateX(-90deg) translateZ(calc(var(--die) / 2)); }
 
-/* ---------- pips ---------- */
 .pips {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   grid-template-rows: repeat(3, 1fr);
-  width: 28px;
-  height: 28px;
+  width: 70%;
+  height: 70%;
   gap: 2px;
 }
-.pip {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  align-self: center;
-  justify-self: center;
-}
+.pip { width: 78%; height: 78%; border-radius: 50%; align-self: center; justify-self: center; }
 
-/* ---------- bottom drawer (respects sidebar) ---------- */
+/* ---------- the battle drawer: docked inside the map, on the felt ---------- */
 .battle-drawer {
-  position: fixed;
-  left: 0;
-  right: 380px; /* stop at the sidebar's left edge */
-  bottom: 0;
-  z-index: 20;
+  position: absolute;
+  left: 10px;
+  right: 10px;
+  bottom: 10px;
+  z-index: 6;
+  animation: drawer-slide-up 260ms cubic-bezier(.2, .8, .2, 1);
   pointer-events: none;
-  animation: drawer-slide-up 260ms cubic-bezier(.2,.8,.2,1);
 }
-
-@keyframes drawer-slide-up {
-  from { transform: translateY(100%); }
-  to   { transform: translateY(0); }
-}
+@keyframes drawer-slide-up { from { transform: translateY(24px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
 
 .battle-drawer-inner {
   pointer-events: auto;
   background-color: #0e2a1c;
-  background-image:
-    linear-gradient(rgba(0, 0, 0, 0.55), rgba(0, 0, 0, 0.7)),
-    url('/felt.jpg');
+  background-image: linear-gradient(rgba(0, 0, 0, 0.5), rgba(0, 0, 0, 0.72)), url('/felt.jpg');
   background-size: cover;
   background-position: center;
-  border-top: 1px solid rgba(255, 255, 255, 0.15);
-  border-right: 1px solid var(--border);
-  box-shadow: 0 -12px 40px rgba(0, 0, 0, 0.5);
-  padding: 14px 24px 18px;
-  display: flex;
-  align-items: center;
-  gap: 20px;
-  color: var(--text);
-  min-height: 130px;
-  max-height: 32vh;
-  overflow: hidden;
-}
-
-.battle-drawer-header {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  min-width: 200px;
-  flex-shrink: 0;
-}
-.battle-drawer-header h3 { margin: 0; font-size: 15px; letter-spacing: 0.02em; }
-.battle-drawer-header .muted { color: #c7d2e5; font-size: 13px; }
-.battle-drawer-outcome {
-  font-size: 13px;
-  color: #e6ecf5;
-  margin-top: 4px;
-  font-weight: 600;
-}
-
-/* ---------- horizontal scrolling dice row (grid, never wraps) ---------- */
-.dice-pairs {
-  flex: 1 1 auto;
-  min-width: 0;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 14px;
+  box-shadow: 0 16px 44px rgba(0, 0, 0, 0.6);
+  padding: 12px 16px 12px;
   display: grid;
-  grid-auto-flow: column;
-  grid-auto-columns: max-content;
-  align-items: center;
-  gap: 10px;
-  overflow-x: auto;
-  overflow-y: hidden;
-  padding: 4px 8px 10px;
-  scroll-behavior: smooth;
-  scrollbar-width: thin;
-  scrollbar-color: rgba(255, 255, 255, 0.28) transparent;
+  grid-template-columns: minmax(210px, 280px) 1fr;
+  gap: 8px 18px;
+  color: var(--text);
+  max-height: 46%;
+  overflow: auto;
 }
-.dice-pairs::-webkit-scrollbar { height: 8px; }
-.dice-pairs::-webkit-scrollbar-track { background: transparent; }
-.dice-pairs::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.22);
-  border-radius: 4px;
-}
-.dice-pairs::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.35); }
+.battle-drawer-side { display: flex; flex-direction: column; gap: 6px; justify-content: center; min-width: 0; }
+.battle-sides { display: grid; gap: 4px; }
+.side { display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 14px; min-width: 0; }
+.side .dot { width: 10px; height: 10px; border-radius: 50%; flex: none; }
+.side .tag { font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; opacity: 0.75; font-weight: 600; }
+.side .nm { overflow-wrap: anywhere; line-height: 1.2; }
+.side .count { margin-left: auto; font-variant-numeric: tabular-nums; }
+.side .count .was { opacity: 0.55; text-decoration: line-through; margin-right: 6px; font-weight: 500; }
+.battle-outcome { font-size: 13px; font-weight: 700; color: #e6ecf5; min-height: 1.4em; }
+.battle-outcome .loss { color: #fca5a5; }
+.battle-round-tag { font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: #c7d2e5; }
 
+.dice-pairs { display: flex; flex-wrap: wrap; justify-content: center; align-content: center; gap: 8px; padding: 2px 0; min-width: 0; }
 .pair {
   display: grid;
   grid-auto-flow: column;
   grid-auto-columns: max-content;
   align-items: center;
-  gap: 10px;
-  padding: 6px 12px;
+  gap: 2px;
+  padding: 3px 8px;
   border-radius: 10px;
   background: rgba(0, 0, 0, 0.32);
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  transition: background 0.2s;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  transition: background 0.25s, border-color 0.25s, transform 0.25s;
 }
-.pair.attacker { background: rgba(29, 78, 216, 0.32); border-color: rgba(96, 165, 250, 0.5); }
-.pair.defender { background: rgba(185, 28, 28, 0.32); border-color: rgba(248, 113, 113, 0.5); }
-.pair.tie     { background: rgba(148, 163, 184, 0.22); border-color: rgba(203, 213, 225, 0.4); }
-
-.pair .vs {
-  color: #c7d2e5;
-  font-size: 11px;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  text-align: center;
-}
-
-.pair .out {
-  font-weight: 700;
-  font-size: 18px;
-  width: 24px;
-  text-align: center;
-}
+.pair.attacker { background: rgba(29, 78, 216, 0.34); border-color: rgba(96, 165, 250, 0.6); }
+.pair.defender { background: rgba(185, 28, 28, 0.34); border-color: rgba(248, 113, 113, 0.6); }
+.pair.tie { background: rgba(148, 163, 184, 0.22); border-color: rgba(203, 213, 225, 0.4); }
+.pair .vs { color: #c7d2e5; font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; }
+.pair .out { font-weight: 800; font-size: 15px; width: 18px; text-align: center; }
 .pair .out.attacker { color: #4ade80; }
 .pair .out.defender { color: #f87171; }
-.pair .out.tie      { color: #cbd5e1; }
+.pair .out.tie { color: #cbd5e1; }
 
-/* ---------- continue button ---------- */
-.battle-drawer-inner > button {
-  align-self: center;
-  min-width: 110px;
-  flex-shrink: 0;
+.battle-commentary {
+  grid-column: 1 / -1;
+  font-size: 13.5px;
+  line-height: 1.5;
+  color: #e6ecf5;
+  font-style: italic;
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
+  padding-top: 8px;
+  min-height: 2.6em;
+}
+.battle-commentary .src { font-style: normal; font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; color: #94a3b8; margin-left: 8px; }
+
+@media (max-width: 760px) {
+  .battle-drawer-inner { grid-template-columns: 1fr; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .battle-drawer { animation: none; }
 }
