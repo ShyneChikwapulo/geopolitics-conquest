@@ -6,6 +6,7 @@ import type { GameStore } from '../game/store/GameStore';
 import type { GameRow } from '../game/types';
 import { Flag } from './Flag';
 import { HowToPlay } from './HowToPlay';
+import { IconChart, IconGames, IconRules, IconSpark } from './Icons';
 import { Logo } from './Logo';
 
 interface Props {
@@ -58,9 +59,9 @@ export function StartScreen({ store, onStart, onResume, onHistory, onAnalytics }
             </div>
           </div>
           <div className="page-actions">
-            <button onClick={() => setRules(true)}>? Rules</button>
-            <button onClick={onAnalytics}>📊 Analytics</button>
-            <button onClick={onHistory}>🗂 My games</button>
+            <button onClick={() => setRules(true)}><IconRules /> Rules</button>
+            <button onClick={onAnalytics}><IconChart /> Analytics</button>
+            <button onClick={onHistory}><IconGames /> My games</button>
             <span className="chip" title={user?.email ?? ''}>{user?.isGuest ? 'dev guest' : user?.email}</span>
             <button className="ghost" onClick={() => void signOut()}>Sign out</button>
           </div>
@@ -102,7 +103,7 @@ export function StartScreen({ store, onStart, onResume, onHistory, onAnalytics }
             <button className="gold" style={{ padding: '12px 18px', fontSize: 16 }} disabled={!store} onClick={() => onStart(selected, difficulty)}>
               {store ? `Start as ${chosen.name}` : 'Connecting…'}
             </button>
-            {config.llm && <p className="muted" style={{ margin: 0, fontSize: 12 }}>🧠 AI commentary is on, and one rival per game has its attack choices made by an AI advisor.</p>}
+            {config.llm && <p className="muted" style={{ margin: 0, fontSize: 12 }}><IconSpark /> AI commentary is on, and one rival per game has its attack choices made by an AI advisor.</p>}
           </section>
 
           <section className="card" aria-label="Continue a game">

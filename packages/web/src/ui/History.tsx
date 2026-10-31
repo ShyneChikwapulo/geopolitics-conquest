@@ -5,6 +5,7 @@ import { shareUrl } from '../game/share';
 import type { GameStore } from '../game/store/GameStore';
 import type { GameRow } from '../game/types';
 import { Flag } from './Flag';
+import { IconTrash } from './Icons';
 
 interface Props {
   store: GameStore | null;
@@ -82,7 +83,7 @@ export function History({ store, onBack, onResume, onReplay }: Props) {
                         <button className="ghost" onClick={() => setConfirm(null)}>Cancel</button>
                       </>
                     ) : (
-                      <button className="ghost" onClick={() => setConfirm(r.id)} aria-label="Delete this game">🗑</button>
+                      <button className="ghost" onClick={() => setConfirm(r.id)} aria-label="Delete this game"><IconTrash /></button>
                     )}
                   </div>
                 </div>

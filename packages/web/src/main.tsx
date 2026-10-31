@@ -4,6 +4,7 @@ import App from './App';
 import './styles/global.css';
 import './styles/brand.css';
 import './styles/app.css';
+import './styles/chrome.css';
 import './map/map.css';
 import './battle/dice.css';
 

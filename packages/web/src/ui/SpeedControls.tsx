@@ -1,4 +1,5 @@
 import { SPEEDS, type Speed } from '../game/playback';
+import { IconFastForward } from './Icons';
 
 interface Props {
   speed: Speed;
@@ -28,7 +29,7 @@ export function SpeedControls({ speed, setSpeed, fastToMe, setFastToMe, disableF
           onClick={() => setFastToMe(!fastToMe)}
           title="Fast-forward the rivals' turns until it is your turn again. Every move is still shown."
         >
-          ⏩ To my turn
+          <IconFastForward /> To my turn
         </button>
       )}
     </div>

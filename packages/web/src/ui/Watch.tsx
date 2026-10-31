@@ -8,6 +8,7 @@ import { BattleLog } from './BattleLog';
 import { BoardStage } from './BoardStage';
 import { CommentaryPanel } from './CommentaryPanel';
 import { DecisionFeed } from './DecisionFeed';
+import { IconReplay } from './Icons';
 import { Logo } from './Logo';
 import { PlayerList } from './PlayerList';
 import { SpeedControls } from './SpeedControls';
@@ -70,7 +71,7 @@ export function Watch({ gameId, onLeave, onReplay }: Props) {
         <span className="header-spacer" />
         <SpeedControls speed={s.speed} setSpeed={s.setSpeed} fastToMe={false} setFastToMe={() => {}} showFastForward={false} />
         <div className="header-actions">
-          <button onClick={() => onReplay(gameId)}>⟲ <span className="txt">Replay from start</span></button>
+          <button onClick={() => onReplay(gameId)}><IconReplay /> <span className="txt">Replay from start</span></button>
           <button className="primary" onClick={onLeave}>{status === 'signedIn' ? 'Menu' : 'Play your own game'}</button>
         </div>
       </header>

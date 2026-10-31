@@ -15,6 +15,7 @@ import { DecisionFeed } from './ui/DecisionFeed';
 import { EndBanner, type EndKind } from './ui/EndBanner';
 import { Flag } from './ui/Flag';
 import { HowToPlay } from './ui/HowToPlay';
+import { IconGames, IconMenu, IconRules, IconShare } from './ui/Icons';
 import { Logo } from './ui/Logo';
 import { PlayerList } from './ui/PlayerList';
 import { SpeedControls } from './ui/SpeedControls';
@@ -125,16 +126,16 @@ export function GameView({ onExit, onHistory, onNewGame, onReplay }: GameViewPro
         />
         <div className="header-actions">
           <button onClick={() => void share()} title="Copy a link that lets anyone watch this game live">
-            🔗 <span className="txt">Share</span>
+            <IconShare /> <span className="txt">Share</span>
           </button>
           <button onClick={() => setRules(true)} title="How to play">
-            ? <span className="txt">Rules</span>
+            <IconRules /> <span className="txt">Rules</span>
           </button>
           <button onClick={onHistory} title="Your saved games">
-            🗂 <span className="txt">My games</span>
+            <IconGames /> <span className="txt">My games</span>
           </button>
           <button onClick={onExit} title="Leave. The game is saved and can be resumed.">
-            ⌂ <span className="txt">Menu</span>
+            <IconMenu /> <span className="txt">Menu</span>
           </button>
         </div>
       </header>
