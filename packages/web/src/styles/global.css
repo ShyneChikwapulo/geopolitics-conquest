@@ -1,53 +1,121 @@
+/* =====================================================================================================
+   Design tokens and base elements.
+   Visual reference: the Sovereign Figma design (warm charcoal surfaces, a single ember accent,
+   condensed display type over a humanist sans). Legacy variable names (--bg, --panel, --text ...) are
+   kept as aliases so every existing rule and inline style keeps working.
+   ===================================================================================================== */
 :root {
   color-scheme: dark;
-  --bg: #0b1220;
-  --panel: #131a2b;
-  --panel-2: #1b2540;
-  --panel-3: #223055;
-  --text: #e6ecf5;
-  --muted: #8a99b5;
-  --accent: #3b82f6;
-  --gold: #fbbf24;
-  --danger: #ef4444;
-  --ok: #22c55e;
-  --border: #263351;
-  --radius: 10px;
-  --shadow: 0 12px 36px rgba(0, 0, 0, 0.45);
-  font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+
+  /* surfaces */
+  --ink: #11100e;
+  --ink-2: #151411;
+  --ink-3: #171612;
+  --ink-4: #1d1b18;
+  --ink-5: #26231f;
+  --line: rgba(255, 255, 255, 0.1);
+  --line-soft: rgba(255, 255, 255, 0.06);
+  --line-strong: rgba(255, 255, 255, 0.24);
+
+  /* text */
+  --cream: #f2ede2;
+  --cream-2: #efe8da;
+  --text-dim: #b9b3a8;
+  --text-mute: #8d887d;
+  --text-faint: #6f6a62;
+
+  /* accent and faction tones */
+  --ember: #ff5c35;
+  --ember-hi: #ff7958;
+  --ember-ink: #171310;
+  --copper: #c87c42;
+  --steel: #6a8ca9;
+  --olive: #a6aa64;
+  --slate: #69706b;
+
+  /* semantic */
+  --danger: #e5584a;
+  --ok: #a6aa64;
+
+  /* legacy aliases */
+  --bg: var(--ink);
+  --panel: var(--ink-2);
+  --panel-2: var(--ink-4);
+  --panel-3: var(--ink-5);
+  --text: var(--cream);
+  --muted: var(--text-mute);
+  --accent: var(--ember);
+  --gold: var(--ember);
+  --border: var(--line);
+  --radius: 4px;
+  --shadow: 0 18px 48px rgba(0, 0, 0, 0.5);
+
+  --font-display: 'Barlow Condensed', 'Arial Narrow', 'Helvetica Neue', Arial, sans-serif;
+  --font-body: 'DM Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+
+  /* The frame around the logo (see src/ui/Logo.tsx). Set both colours to transparent for a frameless logo. */
+  --logo-frame-border: rgba(255, 92, 53, 0.5);
+  --logo-frame-bg: rgba(255, 92, 53, 0.1);
+  --logo-inset: 12%;
+
+  font-family: var(--font-body);
 }
-* { box-sizing: border-box; }
+
+* { box-sizing: border-box; scrollbar-width: thin; scrollbar-color: rgba(255, 255, 255, 0.2) transparent; }
 html, body, #root { height: 100%; margin: 0; }
-body { background: var(--bg); color: var(--text); -webkit-font-smoothing: antialiased; }
-h1, h2, h3, h4 { margin: 0; }
-a { color: #93c5fd; }
+body { background: var(--ink); color: var(--cream); font-family: var(--font-body); font-size: 14px; line-height: 1.5; -webkit-font-smoothing: antialiased; }
+h1, h2, h3, h4 { margin: 0; font-family: var(--font-display); font-weight: 600; text-transform: uppercase; letter-spacing: 0.02em; line-height: 1.05; }
+a { color: var(--ember-hi); }
+strong { font-weight: 700; }
+code { font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace; }
+::selection { background: var(--ember); color: var(--ember-ink); }
+
+/* ---------- buttons ---------- */
 button {
-  font: inherit; color: var(--text); background: var(--panel-2);
-  border: 1px solid var(--border); border-radius: 8px;
-  padding: 8px 14px; cursor: pointer; transition: background .15s, border-color .15s, transform .08s;
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  font-family: var(--font-display); font-size: 13px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; line-height: 1.1;
+  color: var(--text-dim); background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--line); border-radius: 3px; padding: 9px 14px; cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, color 0.15s, transform 0.08s;
 }
-button:hover:not(:disabled) { background: var(--panel-3); border-color: var(--accent); }
+button:hover:not(:disabled) { color: var(--cream); background: rgba(255, 255, 255, 0.07); border-color: var(--line-strong); }
 button:active:not(:disabled) { transform: translateY(1px); }
 button:disabled { opacity: 0.4; cursor: not-allowed; }
-button.primary { background: var(--accent); border-color: var(--accent); font-weight: 600; }
-button.primary:hover:not(:disabled) { background: #2563eb; }
-button.gold { background: var(--gold); border-color: var(--gold); color: #1b1202; font-weight: 700; }
-button.gold:hover:not(:disabled) { background: #f59e0b; border-color: #f59e0b; }
-button.ghost { background: transparent; }
-button.danger { border-color: #7f1d1d; color: #fca5a5; }
-button.danger:hover:not(:disabled) { background: #3b1218; border-color: var(--danger); }
-input, select { font: inherit; color: var(--text); background: var(--panel-2); border: 1px solid var(--border); border-radius: 6px; padding: 6px 10px; }
-input:focus, select:focus { outline: none; border-color: var(--accent); }
-:focus-visible { outline: 2px solid #60a5fa; outline-offset: 2px; }
-.muted { color: var(--muted); }
+button.primary { color: var(--ember-ink); background: var(--cream-2); border-color: var(--cream-2); font-weight: 700; }
+button.primary:hover:not(:disabled) { color: var(--ember-ink); background: #ffffff; border-color: #ffffff; }
+button.gold { color: var(--ember-ink); background: var(--ember); border-color: var(--ember); font-weight: 700; }
+button.gold:hover:not(:disabled) { color: var(--ember-ink); background: var(--ember-hi); border-color: var(--ember-hi); }
+button.ghost { background: transparent; border-color: transparent; color: var(--text-mute); }
+button.ghost:hover:not(:disabled) { background: transparent; border-color: transparent; color: var(--cream); }
+button.danger { background: transparent; color: #f19a90; border-color: rgba(229, 88, 74, 0.45); }
+button.danger:hover:not(:disabled) { color: #ffd6d1; background: rgba(229, 88, 74, 0.14); border-color: var(--danger); }
+
+/* ---------- form controls ---------- */
+input, select { font: inherit; color: var(--cream); background: rgba(255, 255, 255, 0.04); border: 1px solid var(--line); border-radius: 3px; padding: 8px 10px; }
+select option { background: var(--ink-3); color: var(--cream); }
+input::placeholder { color: #5f5a52; }
+input:focus, select:focus { outline: none; border-color: var(--ember); }
+input[type='range'] { padding: 0; border: 0; background: transparent; accent-color: var(--ember); }
+input:-webkit-autofill, input:-webkit-autofill:hover, input:-webkit-autofill:focus { -webkit-text-fill-color: var(--cream); box-shadow: 0 0 0 1000px var(--ink-3) inset; }
+:focus-visible { outline: 2px solid var(--ember-hi); outline-offset: 2px; }
+
+/* ---------- small shared pieces ---------- */
+.muted { color: var(--text-mute); }
 .sr-only { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0, 0, 0, 0); border: 0; }
+.flag { display: inline-block; border-radius: 2px; box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.2); object-fit: cover; flex: none; vertical-align: middle; }
 
-.flag { display: inline-block; border-radius: 2px; box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.18); object-fit: cover; flex: none; vertical-align: middle; }
-
-.spinner { display: inline-block; width: 14px; height: 14px; border-radius: 50%; border: 2px solid rgba(255, 255, 255, 0.25); border-top-color: var(--gold); animation: spin 0.8s linear infinite; vertical-align: -2px; }
+.spinner { display: inline-block; width: 14px; height: 14px; border-radius: 50%; border: 2px solid rgba(255, 255, 255, 0.18); border-top-color: var(--ember); animation: spin 0.8s linear infinite; vertical-align: -2px; }
 @keyframes spin { to { transform: rotate(360deg); } }
 
-.chip { display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px; border-radius: 999px; background: var(--panel-2); border: 1px solid var(--border); font-size: 12px; color: var(--muted); }
-.chip strong { color: var(--text); }
+.chip { display: inline-flex; align-items: center; gap: 6px; padding: 3px 11px; border-radius: 999px; background: transparent; border: 1px solid var(--line); font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-mute); }
+.chip strong { color: var(--cream); }
+
+/* Icons (src/ui/Icons.tsx): sized by the surrounding text. */
+.icon { display: inline-block; width: 1.15em; height: 1.15em; flex: none; vertical-align: -0.2em; }
+
+/* The logo container (src/ui/Logo.tsx). The artwork itself is public/brand/logo.svg. */
+.logo-mark { display: inline-grid; place-items: center; flex: none; border-radius: 50%; border: 1px solid var(--logo-frame-border); background: var(--logo-frame-bg); overflow: hidden; }
+.logo-mark img { display: block; width: calc(100% - 2 * var(--logo-inset)); height: calc(100% - 2 * var(--logo-inset)); object-fit: contain; user-select: none; }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: 0.001ms !important; animation-iteration-count: 1 !important; transition-duration: 0.001ms !important; }

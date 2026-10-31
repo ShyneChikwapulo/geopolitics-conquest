@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 80" width="512" height="512" fill="none">
+  <!-- PLACEHOLDER LOGO. Replace this file with your own artwork (square, transparent background). -->
+  <circle cx="40" cy="40" r="34" stroke="#ff6d49" stroke-width="1.5"/>
+  <circle cx="40" cy="40" r="27" stroke="#ff6d49" stroke-width="0.7" opacity="0.5"/>
+  <path d="M40 8l6.5 25.5L72 40l-25.5 6.5L40 72l-6.5-25.5L8 40l25.5-6.5z" stroke="#ff6d49" stroke-width="1.5"/>
+  <path d="M40 16l5 19 19 5-19 5-5 19-5-19-19-5 19-5z" fill="#ff6d49" opacity="0.25"/>
+  <circle cx="40" cy="40" r="3" fill="#ff6d49"/>
+</svg>
