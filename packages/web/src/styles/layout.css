@@ -1,0 +1,538 @@
+.game-view { display: flex; flex-direction: column; height: 100%; }
+.game-header { display: flex; align-items: center; gap: 16px; padding: 12px 20px;
+  background: var(--panel); border-bottom: 1px solid var(--border); }
+.game-header h1 { font-size: 18px; margin: 0; }
+.game-meta { color: var(--muted); }
+.speed-controls { display: flex; gap: 4px; margin-left: auto; }
+.game-main { flex: 1; display: flex; min-height: 0; }
+.game-map { position: relative; flex: 1; min-width: 0; display: grid; place-items: center; padding: 12px; }
+.game-sidebar {
+  width: 380px;
+  background: var(--panel);
+  border-left: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 12px;
+  overflow-y: auto;
+  min-height: 0; /* allow flex children to shrink correctly */
+}
+
+/* Battle log takes the leftover space; the commentary has fixed height above it. */
+.game-sidebar .battle-log {
+  flex: 1 1 auto;
+  min-height: 120px;
+}
+.player-list h3, .battle-log h3, .action-panel h3, .commentary h3,
+.history h3, .analytics h3 { margin: 0 0 8px; font-size: 12px; text-transform: uppercase;
+  letter-spacing: .06em; color: var(--muted); }
+.player-list ul { list-style: none; margin: 0; padding: 0; }
+.player-list li { display: flex; gap: 8px; align-items: center; padding: 6px 8px; border-radius: 6px; }
+.player-list li.current { background: var(--panel-2); }
+.player-list li.eliminated { opacity: .35; text-decoration: line-through; }
+.player-list .dot { width: 10px; height: 10px; border-radius: 50%; }
+.player-list .name { flex: 1; }
+.player-list .stats { color: var(--muted); font-size: 12px; }
+.battle-log { flex: 1; background: var(--panel-2); border-radius: 8px; padding: 10px; overflow-y: auto; min-height: 180px; }
+.battle-log ol { list-style: none; padding: 0; margin: 0; font-size: 13px; line-height: 1.4; }
+.battle-log li { padding: 3px 0; border-bottom: 1px solid rgba(255,255,255,.03); }
+.battle-log .ev-territoryConquered { color: var(--ok); font-weight: 600; }
+.battle-log .ev-playerEliminated, .battle-log .ev-attackFailed { color: var(--danger); }
+.battle-log .ev-gameWon { color: #fbbf24; font-weight: 700; }
+.action-panel { background: var(--panel-2); border-radius: 8px; padding: 12px;
+  display: flex; flex-direction: column; gap: 8px; }
+.action-form { display: flex; flex-direction: column; gap: 8px; }
+.alloc-row { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.alloc-row input { width: 64px; }
+.muted { color: var(--muted); }
+.start-screen { min-height: 100vh; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 20px; padding: 40px; text-align: center; }
+.start-form { display: flex; flex-direction: column; gap: 14px; width: 380px; }
+.start-form label { display: flex; flex-direction: column; gap: 6px; text-align: left; }
+.history, .analytics { background: var(--panel); padding: 12px; border-radius: 8px; width: 380px; text-align: left; }
+.history ul, .analytics ul { list-style: none; padding: 0; margin: 0; }
+.history li { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 4px 0; }
+.commentary { background: var(--panel-2); border-radius: 8px; padding: 10px;
+  border: 1px solid var(--border); font-style: italic; color: #c7d2e5; }
+.battle-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.55);
+  display: grid; place-items: center; z-index: 20; backdrop-filter: blur(3px); }
+.battle-card { background: var(--panel); border: 1px solid var(--border); padding: 24px;
+  border-radius: 12px; min-width: 340px; text-align: center; }
+.battle-card h3 { margin-top: 0; }
+.dice-pairs { display: flex; flex-direction: column; gap: 8px; margin: 16px 0; }
+.pair { display: flex; gap: 12px; align-items: center; justify-content: center; }
+.vs { color: var(--muted); }
+.out { font-weight: 700; width: 24px; }
+.out.attacker { color: var(--ok); }
+.out.defender { color: var(--danger); }
+.out.tie { color: var(--muted); }
+.game-over { position: fixed; inset: 0; background: rgba(0,0,0,.6);
+  display: grid; place-items: center; backdrop-filter: blur(4px); z-index: 30; }
+.game-over > div { text-align: center; }
+.game-over h2 { font-size: 32px; margin: 0 0 12px; }
+.difficulty-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+}
+.difficulty-row button { padding: 8px 6px; font-size: 12px; }
+.player-list .profile-tag {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--muted);
+}
+.player-list .profile-tag.profile-aggressive { color: #f87171; }
+.player-list .profile-tag.profile-defensive { color: #60a5fa; }
+.player-list .profile-tag.profile-balanced { color: #fbbf24; }
+.player-list .profile-tag.profile-human { color: var(--ok); }
+.analytics h4 {
+  margin: 14px 0 6px;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+}
+.seat-bars {
+  display: flex;
+  gap: 6px;
+  height: 60px;
+  align-items: flex-end;
+  margin-bottom: 8px;
+}
+.seat-bar {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  height: 100%;
+  background: rgba(255, 255, 255, 0.04);
+  border-radius: 3px;
+  overflow: hidden;
+  position: relative;
+}
+.seat-bar-fill {
+  width: 100%;
+  background: linear-gradient(to top, var(--accent), #60a5fa);
+  min-height: 2px;
+}
+.seat-bar-label {
+  position: absolute;
+  bottom: 1px;
+  font-size: 9px;
+  color: var(--muted);
+}
+.analytics-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+.analytics-table th, .analytics-table td {
+  padding: 4px 6px;
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+}
+.analytics-table th {
+  font-weight: 500;
+  color: var(--muted);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.battle-summary {
+  position: absolute;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(15, 22, 38, 0.92);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px 18px;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.5);
+  cursor: pointer;
+  animation: summary-in 300ms cubic-bezier(.2,.8,.2,1);
+  max-width: 60%;
+  text-align: center;
+  z-index: 10;
+}
+@keyframes summary-in {
+  from { opacity: 0; transform: translate(-50%, 20px); }
+  to   { opacity: 1; transform: translate(-50%, 0); }
+}
+.login-screen {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 40px;
+}
+.login-card {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  width: 340px;
+  padding: 32px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.6);
+}
+.login-card h1 { margin: 0 0 4px; font-size: 22px; }
+.login-card label { display: flex; flex-direction: column; gap: 6px; text-align: left; font-size: 13px; }
+.login-error { color: var(--danger); font-size: 13px; margin: 0; }
+.login-hint { font-size: 11px; margin: 0; text-align: center; }
+.login-hint code {
+  background: var(--panel-2);
+  padding: 1px 5px;
+  border-radius: 4px;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+}
+.battle-log .log-group { margin-bottom: 6px; }
+.battle-log .log-group-header {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 12px;
+  color: var(--muted);
+  cursor: pointer;
+  text-align: left;
+}
+.battle-log .log-group-header:hover { background: rgba(255, 255, 255, 0.08); }
+.battle-log .log-count { margin-left: auto; font-size: 10px; }
+.battle-log .log-caret { font-size: 10px; width: 10px; text-align: center; }
+.battle-log .log-ts {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 10px;
+  color: var(--muted);
+  opacity: 0.8;
+  margin-right: 6px;
+}
+
+.commentary {
+  background: var(--panel-2);
+  border-radius: 8px;
+  padding: 14px 16px;
+  border: 1px solid var(--border);
+  color: #dbe4f0;
+  font-style: italic;
+  font-size: 14px;
+  line-height: 1.55;
+  /* Give it real presence — enough room for the 2-sentence target with
+     headroom for a verbose response, but flex-shrink so it yields to the log
+     on short viewports rather than pushing the action panel off-screen. */
+  min-height: 120px;
+  max-height: 240px;
+  flex: 0 0 auto;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.22) transparent;
+}
+.commentary h3 {
+  margin: 0 0 8px;
+  font-style: normal;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+}
+.commentary p {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.55;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+}
+
+.commentary-loading {
+  color: var(--muted);
+  font-style: italic;
+  animation: pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 0.5; }
+  50% { opacity: 1; }
+}
+
+/* Splash */
+.splash {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 24px;
+  background: radial-gradient(circle at 50% 40%, #1e293b 0%, #050a16 100%);
+  color: var(--text);
+  cursor: pointer;
+  transition: opacity 0.4s ease;
+  z-index: 100;
+  padding: 40px;
+  overflow: hidden;
+}
+.splash.fading { opacity: 0; }
+
+.splash-art {
+  max-width: min(720px, 86vw);
+  max-height: 62vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: splash-in 1s cubic-bezier(.2,.8,.2,1);
+  filter: drop-shadow(0 24px 60px rgba(0, 0, 0, 0.6));
+}
+
+.splash-image {
+  max-width: 100%;
+  max-height: 62vh;
+  width: auto;
+  height: auto;
+  /* If your PNG has a white (not transparent) background, this makes the
+     white disappear into the dark splash. If your PNG is truly transparent,
+     change to `normal` — the image will sit on the gradient cleanly. */
+  mix-blend-mode: lighten;
+}
+
+@keyframes splash-in {
+  from { transform: scale(0.9); opacity: 0; }
+  to   { transform: scale(1);   opacity: 1; }
+}
+
+.splash-footer {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--muted);
+  font-size: 13px;
+  font-style: italic;
+  opacity: 0.85;
+}
+
+.splash-enter {
+  margin-top: 8px;
+  padding: 12px 36px;
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text);
+  background: transparent;
+  border: 1.5px solid #fbbf24;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.2s, transform 0.15s;
+  animation: splash-enter-pulse 2.4s ease-in-out infinite;
+}
+.splash-enter:hover {
+  background: rgba(251, 191, 36, 0.15);
+  transform: translateY(-1px);
+}
+.splash-enter:active {
+  transform: translateY(0);
+}
+
+@keyframes splash-enter-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(251, 191, 36, 0.4); }
+  50%      { box-shadow: 0 0 0 10px rgba(251, 191, 36, 0); }
+}
+
+@media (max-width: 640px) {
+  .splash-art { max-height: 50vh; }
+  .splash-image { max-height: 50vh; }
+  .splash-footer span { display: none; }
+}
+
+/* Auth screen */
+.auth-screen {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 40px;
+  background: radial-gradient(circle at 50% 40%, #131a2b 0%, #050a16 100%);
+}
+.auth-card {
+  width: 380px;
+  padding: 28px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.6);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.auth-logo { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+.auth-logo h1 { font-size: 20px; margin: 0; }
+.auth-tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.auth-tabs button { padding: 8px; }
+.auth-form { display: flex; flex-direction: column; gap: 12px; }
+.auth-form label { display: flex; flex-direction: column; gap: 6px; font-size: 13px; }
+
+/* Start hero */
+.start-hero { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+.start-hero h1 { margin: 0; font-size: 28px; }
+.start-hero p { margin: 0; color: var(--muted); }
+
+/* Modal */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  display: grid;
+  place-items: center;
+  z-index: 50;
+  backdrop-filter: blur(3px);
+}
+.modal-card {
+  width: min(560px, 90vw);
+  max-height: 80vh;
+  overflow-y: auto;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.6);
+}
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--border);
+}
+.modal-header h2 { margin: 0; font-size: 18px; }
+.modal-header button { padding: 2px 10px; font-size: 18px; }
+.modal-body { padding: 16px 20px; }
+.modal-body p { margin: 0 0 10px; line-height: 1.5; font-size: 14px; }
+.modal-body code { background: var(--panel-2); padding: 1px 5px; border-radius: 4px; font-size: 12px; }
+.game-header-brand { display: flex; align-items: center; gap: 10px; }
+.game-header-brand h1 { font-size: 18px; margin: 0; }
+/* ---------- Rules modal on parchment board ---------- */
+.rules-backdrop {
+  padding: 16px;
+  overflow: auto;
+}
+
+.rules-frame {
+  position: relative;
+  width: min(880px, 94vw);
+  max-height: 92vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: rules-in 280ms cubic-bezier(.2,.8,.2,1);
+}
+
+@keyframes rules-in {
+  from { opacity: 0; transform: scale(0.96); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+.rules-board-image {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: 92vh;
+  border-radius: 8px;
+  filter: drop-shadow(0 24px 60px rgba(0, 0, 0, 0.7));
+  user-select: none;
+  pointer-events: none;
+}
+
+/* The parchment area inside the image. Tuned to the scroll's bounds. */
+.rules-parchment {
+  position: absolute;
+  top: 23.5%;
+  left: 17%;
+  right: 17%;
+  bottom: 15.5%;
+  display: flex;
+  flex-direction: column;
+}
+
+.rules-scroll {
+  flex: 1;
+  overflow-y: auto;
+  padding: 28px 32px 32px;
+  color: #2e1d0c;
+  font-family: 'EB Garamond', 'Georgia', 'Times New Roman', serif;
+  font-size: clamp(12px, 1.3vw, 15px);
+  line-height: 1.55;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(80, 50, 20, 0.4) transparent;
+}
+
+.rules-scroll::-webkit-scrollbar { width: 8px; }
+.rules-scroll::-webkit-scrollbar-thumb {
+  background: rgba(80, 50, 20, 0.35);
+  border-radius: 4px;
+}
+
+.rules-scroll p {
+  margin: 0 0 10px;
+}
+
+.rules-scroll strong {
+  color: #1e1307;
+  font-weight: 700;
+}
+
+.rules-scroll code {
+  background: rgba(80, 50, 20, 0.12);
+  padding: 1px 5px;
+  border-radius: 3px;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.9em;
+  color: #3b2611;
+}
+
+.rules-sign {
+  margin-top: 14px;
+  font-style: italic;
+  font-size: 0.92em;
+  text-align: right;
+  color: #5a3f22;
+}
+
+.rules-close {
+  position: absolute;
+  top: 8px;
+  right: 12px;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  font-size: 20px;
+  background: rgba(46, 29, 12, 0.1);
+  border: 1px solid rgba(46, 29, 12, 0.25);
+  color: #2e1d0c;
+  border-radius: 50%;
+  cursor: pointer;
+  z-index: 2;
+}
+.rules-close:hover {
+  background: rgba(46, 29, 12, 0.2);
+  border-color: rgba(46, 29, 12, 0.5);
+}
+
+/* If the viewport is very short, don't let the parchment collapse. */
+@media (max-height: 640px) {
+  .rules-frame {
+    max-height: none;
+  }
+  .rules-board-image {
+    max-height: none;
+  }
+}
