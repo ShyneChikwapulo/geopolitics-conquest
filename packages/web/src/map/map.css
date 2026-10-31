@@ -1,56 +1,76 @@
-/* The map panel: rounded frame that clips the SVG into a seamless shape. */
-.game-map {
-  background: var(--bg);
-  padding: 12px;
-  display: grid;
-  place-items: center;
+/* ---------- the map board: a paper atlas on the dark table ---------- */
+.map-board {
+  position: relative;
+  flex: 1 1 auto;
   min-height: 0;
   min-width: 0;
+  background-color: #d6c4a0;
+  background-image:
+    radial-gradient(ellipse at 50% 45%, rgba(0, 0, 0, 0) 55%, rgba(60, 38, 12, 0.5) 100%),
+    url('/paper.jpg');
+  background-size: cover, cover;
+  background-position: center;
+  border-radius: 12px;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.07), 0 14px 48px rgba(0, 0, 0, 0.6);
+  overflow: hidden;
 }
-
-/* The rounded "plate" that holds the map. */
-.game-map > svg,
-.game-map > .world-map {
+.world-map {
+  position: absolute;
+  inset: 0;
   width: 100%;
   height: 100%;
   display: block;
-  border-radius: 10px;
-  overflow: hidden;
-  box-shadow:
-    0 0 0 1px rgba(255, 255, 255, 0.06),
-    0 12px 48px rgba(0, 0, 0, 0.6);
 }
 
-.world-map {
-  /* `slice` on the outer SVG + these overrides means the paper reaches every edge. */
-  border-radius: 10px;
-  background: #2a2318; /* in case /paper.jpg is missing, still not navy */
+/* ---------- countries ---------- */
+.country-shape { transition: filter 0.15s; }
+.country-shape.in-play { cursor: pointer; }
+.country-shape.in-play:hover { filter: brightness(1.12) saturate(1.2); }
+.country-shape.flash-hit { animation: shape-hit 0.7s ease-out; }
+.country-shape.flash-conquer { animation: shape-conquer 1.1s ease-out; }
+@keyframes shape-hit { 0% { filter: brightness(2.2) saturate(0.2); } 100% { filter: none; } }
+@keyframes shape-conquer { 0% { filter: brightness(2.6); stroke-width: 5; } 40% { filter: brightness(1.5); } 100% { filter: none; stroke-width: 0.7; } }
+
+/* ---------- badges ---------- */
+.badge:focus-visible { outline: none; }
+.badge:focus-visible .badge-disc { stroke: #1d4ed8; stroke-width: 4; }
+.badge:hover .badge-disc { filter: brightness(1.12); }
+.count { transform-box: fill-box; transform-origin: center; animation: count-pop 0.5s ease-out; }
+.count.down { animation: count-down 0.7s ease-out; }
+.count.up { animation: count-up 0.6s ease-out; }
+@keyframes count-pop { 0% { transform: scale(1.5); } 100% { transform: scale(1); } }
+@keyframes count-down { 0% { transform: scale(1.9); fill: #b91c1c; } 100% { transform: scale(1); } }
+@keyframes count-up { 0% { transform: scale(1.7); fill: #166534; } 100% { transform: scale(1); } }
+.turn-ring { animation: turn-pulse 1.8s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
+@keyframes turn-pulse { 0%, 100% { opacity: 0.35; transform: scale(1); } 50% { opacity: 1; transform: scale(1.1); } }
+.attack-arc { animation: attack-march 0.9s linear infinite; }
+@keyframes attack-march { to { stroke-dashoffset: -28; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .count, .count.down, .count.up, .turn-ring, .attack-arc, .country-shape.flash-hit, .country-shape.flash-conquer { animation: none; }
 }
 
-.country-shape {
-  transition: filter 0.15s, stroke 0.15s;
-}
-.country-shape:hover {
-  filter: brightness(1.15) saturate(1.2);
-  stroke: #1a1206;
-  stroke-width: 0.8;
-}
+.map-skeleton { position: absolute; inset: 0; display: grid; place-items: center; color: #3a2f1f; font-weight: 600; letter-spacing: 0.04em; }
+.map-skeleton .spinner { margin-right: 10px; }
 
-.soldier-badge text {
-  font-family: 'Inter', sans-serif;
-}
-
-.country-shape.in-play {
-  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.35));
-}
-.country-shape.not-in-play {
-  opacity: 0.35;
+/* ---------- ticker: the latest event, over the top of the map ---------- */
+.ticker {
+  position: absolute;
+  top: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  max-width: min(760px, 92%);
+  background: rgba(14, 22, 38, 0.9);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 7px 18px;
+  font-size: 13.5px;
+  font-weight: 600;
+  text-align: center;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
   pointer-events: none;
+  animation: ticker-in 0.25s ease-out;
+  z-index: 3;
 }
-.attack-line-dash {
-  animation: attack-dash 1.4s linear infinite;
-  filter: drop-shadow(0 0 3px rgba(239, 68, 68, 0.55));
-}
-@keyframes attack-dash {
-  to { stroke-dashoffset: -18; }
-}
+@keyframes ticker-in { from { opacity: 0; transform: translate(-50%, -8px); } to { opacity: 1; transform: translate(-50%, 0); } }
