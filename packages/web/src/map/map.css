@@ -1,0 +1,56 @@
+/* The map panel: rounded frame that clips the SVG into a seamless shape. */
+.game-map {
+  background: var(--bg);
+  padding: 12px;
+  display: grid;
+  place-items: center;
+  min-height: 0;
+  min-width: 0;
+}
+
+/* The rounded "plate" that holds the map. */
+.game-map > svg,
+.game-map > .world-map {
+  width: 100%;
+  height: 100%;
+  display: block;
+  border-radius: 10px;
+  overflow: hidden;
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.06),
+    0 12px 48px rgba(0, 0, 0, 0.6);
+}
+
+.world-map {
+  /* `slice` on the outer SVG + these overrides means the paper reaches every edge. */
+  border-radius: 10px;
+  background: #2a2318; /* in case /paper.jpg is missing, still not navy */
+}
+
+.country-shape {
+  transition: filter 0.15s, stroke 0.15s;
+}
+.country-shape:hover {
+  filter: brightness(1.15) saturate(1.2);
+  stroke: #1a1206;
+  stroke-width: 0.8;
+}
+
+.soldier-badge text {
+  font-family: 'Inter', sans-serif;
+}
+
+.country-shape.in-play {
+  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.35));
+}
+.country-shape.not-in-play {
+  opacity: 0.35;
+  pointer-events: none;
+}
+.attack-line-dash {
+  animation: attack-dash 1.4s linear infinite;
+  filter: drop-shadow(0 0 3px rgba(239, 68, 68, 0.55));
+}
+@keyframes attack-dash {
+  to { stroke-dashoffset: -18; }
+}
