@@ -23,3 +23,9 @@ A player cannot be attacked until after they have completed their first turn. Ap
 **Why.** On the real Worldometers dataset, 300 simulated games with no protection showed ~13% of non-first seats were eliminated before ever acting, and seat 0 won ~20% of games vs ~2% for seat 9. The protection flattens that curve without changing any other rule.
 
 **Where it lives.** `Player.hasTakenFirstTurn` in `types.ts`; set `false` in `setup.ts`; set `true` in `advanceTurn` (`engine.ts`) the moment the player's first turn ends; enforced in `validateAction` for `startAttack`; honoured by the NPC brain (`npc/brain.ts`) and the random baseline (`sim/policies.ts`). Covered by 4 tests in `opening-protection.test.ts`.
+
+## Presentation terms (added in the review)
+
+* **Battle round** means one volley of dice inside an attack (round 1, 2, 3...). **Round** (header) means one lap of
+  turns. The commentary and the battle drawer always say "battle round".
+* **Difficulty** changes how the nine rivals behave, never the rules. See `difficulty.md`.

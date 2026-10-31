@@ -8,3 +8,8 @@ coverage/
 !.env.example
 serviceAccount*.json
 .firebase/
+
+# generated assets / build output
+packages/web/public/flags/
+packages/web/public/countries-50m.json
+packages/web/dist/
