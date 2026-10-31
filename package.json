@@ -2,10 +2,14 @@
   "name": "geopolitics-conquest",
   "private": true,
   "version": "0.1.0",
-  "workspaces": ["packages/*", "apps/*"],
+  "workspaces": ["packages/*"],
   "scripts": {
+    "dev": "npm run dev -w @conquest/web",
+    "build": "npm run build -w @conquest/web",
+    "preview": "npm run preview -w @conquest/web",
     "test": "npm run test --workspaces --if-present",
-    "typecheck": "npm run typecheck --workspaces --if-present"
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "simulate:real": "npm run simulate:real -w @conquest/data"
   },
   "engines": { "node": ">=20" }
 }
