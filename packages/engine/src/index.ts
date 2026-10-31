@@ -6,3 +6,6 @@ export * from './setup';
 export * from './engine';
 export * from './npc';
 export * from './sim';
+export * from './view';
+export * from './describe';
+export * from './difficulty';

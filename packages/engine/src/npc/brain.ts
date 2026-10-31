@@ -25,7 +25,15 @@ export interface AttackPlan {
 interface PlanOptions {
   bonus?: Record<string, number>;
   onlySource?: string;
+  /** Only consider attacks on this territory (used when an advisor has chosen the target). */
+  onlyTarget?: string;
   ignoreThresholds?: boolean;
+}
+
+/** Optional steering for {@link decideNpc}. */
+export interface DecisionHints {
+  /** Attack this territory (if a worthwhile plan exists) instead of the heuristic's favourite. */
+  target?: string;
 }
 
 const POOL_PENALTY = 0.02;
@@ -127,6 +135,7 @@ export function bestAttackPlan(
     }
 
     for (const enemy of enemies) {
+      if (options.onlyTarget && enemy.code !== options.onlyTarget) continue;
       const value = captureValue(state, enemy, profile, victim);
       let pick: { k: number; p: number; l: number; util: number; score: number } | null = null;
 
@@ -160,6 +169,23 @@ export function bestAttackPlan(
   if (!best) return null;
   const { score: _score, ...plan } = best;
   return plan;
+}
+
+/**
+ * The best attack plan against each distinct target, ranked best first. Same scoring and thresholds as
+ * bestAttackPlan, so index 0 is always what the heuristic would pick on its own.
+ */
+export function rankAttackPlans(state: GameState, playerId: PlayerId, profile: NpcProfile, max = 3): AttackPlan[] {
+  const targets = Object.values(state.territories).filter((t) => t.ownerId !== playerId && isTargetable(state, t));
+  const plans: AttackPlan[] = [];
+  for (const target of targets) {
+    const plan = bestAttackPlan(state, playerId, profile, { onlyTarget: target.code });
+    if (plan) plans.push(plan);
+  }
+  plans.sort(
+    (a, b) => b.utility - a.utility || b.winProbability - a.winProbability || a.to.code.localeCompare(b.to.code),
+  );
+  return plans.slice(0, max);
 }
 
 function decideAllocate(state: GameState, me: PlayerId, profile: NpcProfile): Decision {
@@ -242,12 +268,14 @@ function rebalance(state: GameState, me: PlayerId, profile: NpcProfile): Decisio
   };
 }
 
-function decideAction(state: GameState, me: PlayerId, profile: NpcProfile): Decision {
+function decideAction(state: GameState, me: PlayerId, profile: NpcProfile, hints?: DecisionHints): Decision {
   const mine = territoriesOf(state, me);
   const g = garrisonTarget(state, me, profile);
 
   if (!state.attackUsed) {
-    const plan = bestAttackPlan(state, me, profile);
+    const plan =
+      (hints?.target ? bestAttackPlan(state, me, profile, { onlyTarget: hints.target }) : null) ??
+      bestAttackPlan(state, me, profile);
     if (plan) {
       const metrics: NpcMetrics = {
         winProbability: plan.winProbability,
@@ -262,7 +290,7 @@ function decideAction(state: GameState, me: PlayerId, profile: NpcProfile): Deci
         return {
           kind: 'transfer',
           action: { type: 'transfer', playerId: me, from: donor.code, to: plan.from.code, count },
-          reason: `Massing ${count} soldiers from ${donor.name} onto ${plan.from.name} to attack ${plan.to.name}.`,
+          reason: `Massing ${count} ${count === 1 ? 'soldier' : 'soldiers'} from ${donor.name} onto ${plan.from.name} to attack ${plan.to.name}.`,
           metrics,
         };
       }
@@ -271,8 +299,8 @@ function decideAction(state: GameState, me: PlayerId, profile: NpcProfile): Deci
         action: { type: 'startAttack', playerId: me, from: plan.from.code, to: plan.to.code },
         reason:
           `Attacking ${plan.to.name} from ${plan.from.name} (${plan.from.soldiers} vs ${plan.to.soldiers}): ` +
-          `${pct(plan.winProbability)} to win, expect to lose ~${one(plan.expectedLosses)} soldiers, ` +
-          `capturing is worth ~${one(plan.value)} soldiers.`,
+          `${pct(plan.winProbability)} to win, expect to lose ~${one(plan.expectedLosses)} ${one(plan.expectedLosses) === '1' ? 'soldier' : 'soldiers'}, ` +
+          `its strategic value scores ~${one(plan.value)} points.`,
         metrics,
       };
     }
@@ -342,14 +370,14 @@ function decideCapture(state: GameState, me: PlayerId, profile: NpcProfile): Dec
   };
 }
 
-export function decideNpc(state: GameState, profile: NpcProfile): Decision {
+export function decideNpc(state: GameState, profile: NpcProfile, hints?: DecisionHints): Decision {
   if (state.phase === 'finished') throw new Error('The game is over.');
   const me = currentPlayer(state).id;
   switch (state.phase) {
     case 'reinforce':
       return decideAllocate(state, me, profile);
     case 'action':
-      return decideAction(state, me, profile);
+      return decideAction(state, me, profile, hints);
     case 'attacking':
       return decideContinue(state, me, profile);
     case 'capture':

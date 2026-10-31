@@ -151,4 +151,6 @@ export type GameEvent =
       kind: NpcDecisionKind;
       reason: string;
       metrics?: NpcMetrics;
+      /** Who made the call: the built-in heuristic (default) or an AI advisor choosing between engine-verified options. */
+      source?: 'heuristic' | 'llm';
     };
