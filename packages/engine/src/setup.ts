@@ -32,7 +32,6 @@ export function createGame(options: CreateGameOptions): { state: GameState; even
 
   const rng = new Rng(seed);
   const chosen = [human, ...rng.shuffle(pool).slice(0, PLAYER_COUNT - 1)];
-  // Colour 0 is always the human; the turn order is then shuffled (random first player).
   const ordered = rng.shuffle(chosen.map((country, colorIndex) => ({ country, colorIndex })));
 
   const players: Player[] = ordered.map(({ country, colorIndex }) => ({
@@ -42,6 +41,7 @@ export function createGame(options: CreateGameOptions): { state: GameState; even
     isHuman: country.code === human.code,
     colorIndex,
     eliminated: false,
+    hasTakenFirstTurn: false,
   }));
 
   const territories: Record<CountryCode, Territory> = {};
@@ -64,7 +64,7 @@ export function createGame(options: CreateGameOptions): { state: GameState; even
     territories,
     currentPlayerIndex: 0,
     round: 1,
-    phase: 'action', // no reinforcements in round 1
+    phase: 'action',
     reinforcementsPending: 0,
     attackUsed: false,
     attack: null,

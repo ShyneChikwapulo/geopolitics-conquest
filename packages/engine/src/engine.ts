@@ -19,7 +19,6 @@ export class IllegalActionError extends Error {
 }
 
 export interface ApplyOptions {
-  /** Inject dice (tests). By default dice come from the seeded RNG stored in the state. */
   roller?: DiceRoller;
 }
 
@@ -36,7 +35,6 @@ export function territoriesOf(state: GameState, playerId: PlayerId): Territory[]
   return Object.values(state.territories).filter((t) => t.ownerId === playerId);
 }
 
-/** Returns an error message, or null if the action is legal right now. */
 export function validateAction(state: GameState, action: Action): string | null {
   if (state.phase === 'finished') return 'The game is over.';
   const player = currentPlayer(state);
@@ -82,6 +80,10 @@ export function validateAction(state: GameState, action: Action): string | null 
       if (!to) return `Unknown target ${action.to}.`;
       if (to.ownerId === player.id) return 'You cannot attack your own country.';
       if (from.soldiers < 2) return `${from.name} needs at least 2 soldiers to attack.`;
+      const defender = state.players.find((p) => p.id === to.ownerId);
+      if (defender && !defender.hasTakenFirstTurn) {
+        return `${defender.name} is protected until they have taken their first turn.`;
+      }
       return null;
     }
 
@@ -191,7 +193,6 @@ export function applyAction(state: GameState, action: Action, options: ApplyOpti
       });
 
       if (to.soldiers === 0) {
-        // Conquest takes priority, even if the attacker is also down to 1 soldier.
         const previousOwnerId = to.ownerId;
         const gained = captureGain(to.baseValue);
         to.ownerId = playerId;
@@ -236,7 +237,7 @@ export function applyAction(state: GameState, action: Action, options: ApplyOpti
       events.push({ type: 'attackStopped', playerId, from: atk.from, to: atk.to });
       s.attack = null;
       s.attackUsed = true;
-      advanceTurn(s, events); // stopping an attack ends the turn
+      advanceTurn(s, events);
       break;
     }
 
@@ -272,6 +273,7 @@ export function applyAction(state: GameState, action: Action, options: ApplyOpti
 }
 
 function advanceTurn(s: GameState, events: GameEvent[]): void {
+  (s.players[s.currentPlayerIndex] as Player).hasTakenFirstTurn = true;
   events.push({ type: 'turnEnded', playerId: currentPlayer(s).id });
 
   const count = s.players.length;
@@ -280,7 +282,7 @@ function advanceTurn(s: GameState, events: GameEvent[]): void {
     idx += 1;
     if (idx >= count) {
       idx = 0;
-      s.round += 1; // everyone has had a turn
+      s.round += 1;
     }
     if (!(s.players[idx] as Player).eliminated) break;
   }

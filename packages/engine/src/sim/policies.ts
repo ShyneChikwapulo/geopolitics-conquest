@@ -11,7 +11,6 @@ export function npcPolicy(profile: NpcProfile): Policy {
   return (state) => decideNpc(state, profile);
 }
 
-/** A legal-but-clueless opponent, used as a baseline to prove the NPC "plays to win". */
 export function randomPolicy(seed: number): Policy {
   const rng = new Rng(seed);
   const pick = <T>(items: T[]): T => items[rng.int(0, items.length - 1)] as T;
@@ -31,7 +30,11 @@ export function randomPolicy(seed: number): Policy {
       }
       case 'action': {
         const attackers = mine.filter((t) => t.soldiers >= 2);
-        const enemies = Object.values(state.territories).filter((t) => t.ownerId !== me);
+        const enemies = Object.values(state.territories).filter((t) => {
+          if (t.ownerId === me) return false;
+          const owner = state.players.find((p) => p.id === t.ownerId);
+          return owner ? owner.hasTakenFirstTurn : false;
+        });
         if (!state.attackUsed && attackers.length > 0 && enemies.length > 0 && rng.next() < 0.6) {
           return {
             kind: 'attack',

@@ -20,7 +20,10 @@ function makeState(
     seed: 1,
     rngState: 1,
     players: players.map(
-      (id, i): Player => ({ id, name: id, homeCountry: id, isHuman: i === 0, colorIndex: i, eliminated: false }),
+      (id, i): Player => ({
+        id, name: id, homeCountry: id, isHuman: i === 0, colorIndex: i, eliminated: false,
+        hasTakenFirstTurn: true,
+      }),
     ),
     territories: Object.fromEntries(
       territories.map((t) => [
@@ -170,7 +173,6 @@ describe('attacks', () => {
       ],
     );
     const s1 = applyAction(s0, { type: 'startAttack', playerId: 'A', from: 'X', to: 'Y' }).state;
-    // n = min(2, 3) = 2 dice each, both pairs tie
     const r = applyAction(s1, { type: 'roll', playerId: 'A' }, { roller: scripted([4, 2, 4, 2]) });
     expect(r.state.territories['X']!.soldiers).toBe(3);
     expect(r.state.territories['Y']!.soldiers).toBe(3);
@@ -205,7 +207,7 @@ describe('attacks', () => {
     const s1 = applyAction(three(), { type: 'startAttack', playerId: 'A', from: 'X', to: 'Y' }).state;
     const r = applyAction(s1, { type: 'roll', playerId: 'A' }, { roller: scripted([6, 6, 1, 1]) });
 
-    expect(r.state.territories['Y']).toMatchObject({ ownerId: 'A', soldiers: 4 }); // max(2, floor(9/2))
+    expect(r.state.territories['Y']).toMatchObject({ ownerId: 'A', soldiers: 4 });
     expect(r.state.territories['X']!.soldiers).toBe(5);
     expect(r.state.phase).toBe('capture');
     expect(r.state.players.find((p) => p.id === 'B')!.eliminated).toBe(true);
@@ -231,14 +233,14 @@ describe('attacks', () => {
     s = applyAction(s, { type: 'roll', playerId: 'A' }, { roller: scripted([6, 6, 1, 1]) }).state;
     s = applyAction(s, { type: 'completeCapture', playerId: 'A', move: 0 }).state;
     s = applyAction(s, { type: 'endTurn', playerId: 'A' }).state;
-    expect(currentPlayer(s).id).toBe('C'); // B skipped
+    expect(currentPlayer(s).id).toBe('C');
     expect(s.round).toBe(1);
 
     s = applyAction(s, { type: 'endTurn', playerId: 'C' }).state;
     expect(currentPlayer(s).id).toBe('A');
     expect(s.round).toBe(2);
     expect(s.phase).toBe('reinforce');
-    expect(s.reinforcementsPending).toBe(4); // A holds X and Y
+    expect(s.reinforcementsPending).toBe(4);
   });
 
   it('conquering the last country wins the game', () => {

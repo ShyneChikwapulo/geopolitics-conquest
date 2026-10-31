@@ -5,3 +5,4 @@ export * from './combat';
 export * from './setup';
 export * from './engine';
 export * from './npc';
+export * from './sim';

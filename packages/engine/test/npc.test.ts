@@ -1,6 +1,16 @@
 import { describe, expect, it } from 'vitest';
 import { applyAction, currentPlayer, createGame, validateAction, type GameState, type Player } from '../src';
-import { AGGRESSIVE, BALANCED, DEFENSIVE, advanceNpcs, bestAttackPlan, decideNpc, garrisonTarget, pickVictim, runNpcTurn } from '../src/npc';
+import {
+  AGGRESSIVE,
+  BALANCED,
+  DEFENSIVE,
+  advanceNpcs,
+  bestAttackPlan,
+  decideNpc,
+  garrisonTarget,
+  pickVictim,
+  runNpcTurn,
+} from '../src/npc';
 import { COUNTRIES } from './fixtures';
 
 function makeState(
@@ -12,7 +22,10 @@ function makeState(
     id: 't',
     seed: 1,
     rngState: 1,
-    players: players.map((id, i): Player => ({ id, name: id, homeCountry: id, isHuman: i === 0, colorIndex: i, eliminated: false })),
+    players: players.map((id, i): Player => ({
+      id, name: id, homeCountry: id, isHuman: i === 0, colorIndex: i, eliminated: false,
+      hasTakenFirstTurn: true,
+    })),
     territories: Object.fromEntries(
       territories.map((t) => [t.code, { code: t.code, name: t.code, ownerId: t.owner, soldiers: t.soldiers, baseValue: t.base ?? t.soldiers }]),
     ),
@@ -80,7 +93,7 @@ describe('NPC decisions', () => {
     expect(validateAction(s, d.action)).toBeNull();
     if (d.action.type === 'allocate') {
       expect(Object.values(d.action.allocations).reduce((a, b) => a + b, 0)).toBe(4);
-      expect(d.action.allocations['A1']).toBeGreaterThan(0); // thin country gets topped up first
+      expect(d.action.allocations['A1']).toBeGreaterThan(0);
     }
   });
 

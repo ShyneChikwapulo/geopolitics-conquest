@@ -2,18 +2,19 @@ export type PlayerId = string;
 export type CountryCode = string;
 
 export interface CountryDef {
-  code: CountryCode; // ISO 3166-1 alpha-3
+  code: CountryCode;
   name: string;
   population: number;
 }
 
 export interface Player {
-  id: PlayerId; // equals the home country code
+  id: PlayerId;
   name: string;
   homeCountry: CountryCode;
   isHuman: boolean;
   colorIndex: number;
   eliminated: boolean;
+  hasTakenFirstTurn: boolean;
 }
 
 export interface Territory {
@@ -21,7 +22,6 @@ export interface Territory {
   name: string;
   ownerId: PlayerId;
   soldiers: number;
-  /** Soldiers this country started with (population table). Used for the capture bonus. */
   baseValue: number;
 }
 
@@ -42,7 +42,6 @@ export interface GameState {
   id: string;
   seed: number;
   rngState: number;
-  /** Players in turn order. */
   players: Player[];
   territories: Record<CountryCode, Territory>;
   currentPlayerIndex: number;
@@ -53,7 +52,6 @@ export interface GameState {
   attack: AttackInProgress | null;
   capture: PendingCapture | null;
   winnerId: PlayerId | null;
-  /** Incremented on every applied action (optimistic concurrency). */
   version: number;
 }
 
@@ -84,15 +82,11 @@ export type NpcDecisionKind =
   | 'endTurn';
 
 export interface NpcMetrics {
-  /** Probability of conquering the target from the current position (0..1). */
   winProbability?: number;
-  /** Expected number of soldiers the attacker will still lose. */
   expectedLosses?: number;
-  /** Utility score the NPC computed for this option. */
   utility?: number;
 }
 
-/** Events are the single source of truth for the UI animations and the AI commentary. */
 export type GameEvent =
   | { type: 'gameStarted'; gameId: string; humanPlayerId: PlayerId; turnOrder: PlayerId[] }
   | { type: 'turnStarted'; playerId: PlayerId; round: number }

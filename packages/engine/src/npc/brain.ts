@@ -7,7 +7,6 @@ import type { NpcProfile } from './profiles';
 export interface Decision {
   kind: NpcDecisionKind;
   action: Action;
-  /** Short, human-readable justification shown to the player. */
   reason: string;
   metrics?: NpcMetrics;
 }
@@ -15,9 +14,7 @@ export interface Decision {
 export interface AttackPlan {
   from: Territory;
   to: Territory;
-  /** Soldiers that still have to be moved onto `from` before attacking. */
   pool: number;
-  /** Soldiers on `from` after pooling. */
   force: number;
   winProbability: number;
   expectedLosses: number;
@@ -26,22 +23,18 @@ export interface AttackPlan {
 }
 
 interface PlanOptions {
-  /** Hypothetical extra soldiers per territory (used when deciding where to put reinforcements). */
   bonus?: Record<string, number>;
-  /** Only consider attacks launched from this territory. */
   onlySource?: string;
-  /** Return the best option even if it is below the profile's thresholds (for explanations). */
   ignoreThresholds?: boolean;
 }
 
-const POOL_PENALTY = 0.02; // tiny preference for fewer transfers
+const POOL_PENALTY = 0.02;
 
 const pct = (p: number): string => `${Math.round(p * 100)}%`;
 const one = (n: number): string => (Math.round(n * 10) / 10).toString();
 
-/** How expensive losing a soldier is. Falls as the army grows: big armies can afford to spend soldiers. */
-function soldierCost(totalSoldiers: number, profile: NpcProfile): number {
-  return profile.riskAversion / (1 + totalSoldiers / 25);
+function soldierCost(total: number, profile: NpcProfile): number {
+  return profile.riskAversion / (1 + total / 25);
 }
 
 function totalSoldiers(state: GameState, playerId: PlayerId): number {
@@ -50,11 +43,11 @@ function totalSoldiers(state: GameState, playerId: PlayerId): number {
   return n;
 }
 
-/**
- * How many soldiers each non-staging territory should hold: enough that the strongest rival's best
- * pooled strike has at most `profile.safety` chance of taking it, capped so the NPC never ties up
- * more than `defenceShare` of its army in garrisons.
- */
+export function isTargetable(state: GameState, t: Territory): boolean {
+  const owner = state.players.find((p) => p.id === t.ownerId);
+  return owner ? owner.hasTakenFirstTurn : false;
+}
+
 export function garrisonTarget(state: GameState, me: PlayerId, profile: NpcProfile): number {
   const mine = territoriesOf(state, me);
   if (mine.length === 0) return profile.garrison;
@@ -62,10 +55,10 @@ export function garrisonTarget(state: GameState, me: PlayerId, profile: NpcProfi
   let strike = 0;
   for (const p of state.players) {
     if (p.id === me || p.eliminated) continue;
+    if (!p.hasTakenFirstTurn) continue;
     const owned = territoriesOf(state, p.id);
     if (owned.length === 0) continue;
     const total = owned.reduce((n, t) => n + t.soldiers, 0);
-    // Everything pooled on one country, plus next turn's reinforcements (+2 per country).
     strike = Math.max(strike, total + owned.length + 1);
   }
   const cap = Math.max(profile.garrison, Math.floor((profile.defenceShare * army) / mine.length));
@@ -74,13 +67,13 @@ export function garrisonTarget(state: GameState, me: PlayerId, profile: NpcProfi
   return g;
 }
 
-/** The weakest surviving rival: the easiest player to wipe out. */
 export function pickVictim(state: GameState, me: PlayerId): PlayerId | null {
   let victim: PlayerId | null = null;
   let bestStrength = Infinity;
   let bestCount = Infinity;
   for (const p of state.players) {
     if (p.id === me || p.eliminated) continue;
+    if (!p.hasTakenFirstTurn) continue;
     const owned = territoriesOf(state, p.id);
     if (owned.length === 0) continue;
     const strength = owned.reduce((n, t) => n + t.soldiers, 0);
@@ -93,15 +86,13 @@ export function pickVictim(state: GameState, me: PlayerId): PlayerId | null {
   return victim;
 }
 
-/** What taking `target` is worth, in soldier-equivalents. */
 function captureValue(state: GameState, target: Territory, profile: NpcProfile, victim: PlayerId | null): number {
   const ownerCount = territoriesOf(state, target.ownerId).length;
-  const income = 2 * profile.horizon; // +2 soldiers per round for as long as we keep it
+  const income = 2 * profile.horizon;
   const gain = captureGain(target.baseValue);
   const elimination = ownerCount === 1 ? profile.eliminationBonus : 0;
   const impatience = 1 + Math.max(0, state.round - profile.impatienceStart) / profile.impatienceScale;
   const focus = target.ownerId === victim ? 1 + profile.focus : 1;
-  // Taking the country that holds most of an owner's army cripples them.
   const ownerArmy = territoriesOf(state, target.ownerId).reduce((n, t) => n + t.soldiers, 0);
   const share = ownerArmy > 0 ? target.soldiers / ownerArmy : 0;
   const decapitation = 1 + profile.decapitation * share;
@@ -116,7 +107,9 @@ export function bestAttackPlan(
 ): AttackPlan | null {
   const bonus = options.bonus ?? {};
   const mine = territoriesOf(state, playerId).map((t) => ({ t, soldiers: t.soldiers + (bonus[t.code] ?? 0) }));
-  const enemies = Object.values(state.territories).filter((t) => t.ownerId !== playerId);
+  const enemies = Object.values(state.territories).filter(
+    (t) => t.ownerId !== playerId && isTargetable(state, t),
+  );
   const lambda = soldierCost(
     state.phase === 'finished' ? 0 : mine.reduce((n, m) => n + m.soldiers, 0),
     profile,
@@ -169,10 +162,6 @@ export function bestAttackPlan(
   return plan;
 }
 
-// ---------------------------------------------------------------------------
-// Individual decisions
-// ---------------------------------------------------------------------------
-
 function decideAllocate(state: GameState, me: PlayerId, profile: NpcProfile): Decision {
   const mine = territoriesOf(state, me);
   const alloc: Record<string, number> = {};
@@ -182,7 +171,6 @@ function decideAllocate(state: GameState, me: PlayerId, profile: NpcProfile): De
   let gapSoldiers = 0;
   const gapNames: string[] = [];
 
-  // 1. Fill garrison gaps (most under-defended country first).
   while (left > 0) {
     let worst: Territory | null = null;
     let worstGap = 0;
@@ -204,7 +192,6 @@ function decideAllocate(state: GameState, me: PlayerId, profile: NpcProfile): De
   const parts: string[] = [];
   if (gapSoldiers > 0) parts.push(`${gapSoldiers} to shore up thin defences (${gapNames.join(', ')})`);
 
-  // 2. Put the rest where it enables the best attack; otherwise on the strongest country.
   if (left > 0) {
     let sink: Territory | null = null;
     let sinkPlan: AttackPlan | null = null;
@@ -355,7 +342,6 @@ function decideCapture(state: GameState, me: PlayerId, profile: NpcProfile): Dec
   };
 }
 
-/** The NPC's single entry point: look at the board and pick the next action, with a justification. */
 export function decideNpc(state: GameState, profile: NpcProfile): Decision {
   if (state.phase === 'finished') throw new Error('The game is over.');
   const me = currentPlayer(state).id;
