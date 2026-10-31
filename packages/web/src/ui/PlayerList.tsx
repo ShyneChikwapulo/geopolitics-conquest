@@ -1,27 +1,52 @@
-import { useGame } from '../game/useGame';
-import { PLAYER_COLORS } from '../map/WorldMap';
+import { getCountry } from '@conquest/data';
+import type { BoardView, Player } from '@conquest/engine';
+import { Flag } from './Flag';
 
-export function PlayerList() {
-  const { state, npcProfileLabel } = useGame();
-  const countBy = (id: string) => Object.values(state.territories).filter((t) => t.ownerId === id);
+interface Props {
+  players: readonly Player[];
+  view: BoardView;
+  colorOf: (playerId: string) => string;
+  nameOf: (code: string) => string;
+  humanId: string | null;
+  strategistId?: string | null;
+}
+
+export function PlayerList({ players, view, colorOf, nameOf, humanId, strategistId }: Props) {
+  const rows = players.map((p) => {
+    const owned = Object.values(view.territories).filter((t) => t.ownerId === p.id);
+    return {
+      p,
+      countries: owned.length,
+      soldiers: owned.reduce((n, t) => n + t.soldiers, 0),
+      out: view.eliminated.includes(p.id),
+      protectedNow: !view.firstTurnTaken.includes(p.id) && !view.eliminated.includes(p.id),
+    };
+  });
+  const anyProtected = rows.some((r) => r.protectedNow);
+
   return (
-    <div className="player-list">
-      <h3>Players</h3>
-      <ul>
-        {state.players.map((p, i) => {
-          const owned = countBy(p.id);
-          const isCurrent = i === state.currentPlayerIndex;
-          const profile = npcProfileLabel(p.id);
-          return (
-            <li key={p.id} className={`${isCurrent ? 'current' : ''} ${p.eliminated ? 'eliminated' : ''}`}>
-              <span className="dot" style={{ background: PLAYER_COLORS[p.colorIndex] }} />
-              <span className="name">{p.name}{p.isHuman ? ' (you)' : ''}</span>
-              <span className={`profile-tag profile-${profile}`}>{profile}</span>
-              <span className="stats">{owned.length} · {owned.reduce((a, t) => a + t.soldiers, 0)} s</span>
-            </li>
-          );
-        })}
+    <section className="panel" aria-label="Players">
+      <h3>Players <span className="muted" style={{ textTransform: 'none', letterSpacing: 0 }}>· in turn order</span></h3>
+      <ul className="players">
+        {rows.map(({ p, countries, soldiers, out, protectedNow }) => (
+          <li key={p.id} className={[p.id === view.currentPlayerId && !out ? 'current' : '', out ? 'out' : ''].join(' ').trim()} aria-current={p.id === view.currentPlayerId ? 'true' : undefined}>
+            <span className="bar" style={{ background: colorOf(p.id) }} />
+            <Flag iso2={getCountry(p.id)?.iso2 ?? 'un'} size={15} />
+            <span className="nm">
+              <span className="txt">{nameOf(p.id)}</span>
+              {p.id === humanId && <span className="tag you">you</span>}
+              {p.id === strategistId && <span className="tag brain" title="Its attack choices are made by an AI advisor">🧠 AI</span>}
+              {protectedNow && <span className="tag shield" title="Protected until its first turn: cannot be attacked yet">🛡</span>}
+            </span>
+            <span className="stats">{out ? 'eliminated' : `${countries}c · ${soldiers}s`}</span>
+          </li>
+        ))}
       </ul>
-    </div>
+      {anyProtected && (
+        <div className="legend">
+          <i /> hatched land is protected until its owner's first turn
+        </div>
+      )}
+    </section>
   );
 }

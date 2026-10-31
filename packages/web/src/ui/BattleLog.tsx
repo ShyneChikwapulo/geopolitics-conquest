@@ -1,73 +1,58 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { useGame } from '../game/useGame';
-import type { LogEntry } from '../game/GameProvider';
+import { useMemo, useState } from 'react';
+import { describeEvent } from '@conquest/engine';
+import type { LogEntry } from '../game/playback';
 
 interface Group {
   key: number;
-  header: LogEntry;
-  events: LogEntry[];
+  title: string;
+  lines: Array<{ id: number; type: string; text: string }>;
 }
 
-export function BattleLog() {
-  const { log } = useGame();
-  const ref = useRef<HTMLDivElement>(null);
-  const [collapsed, setCollapsed] = useState<Record<number, boolean>>({});
-
+export function BattleLog({ log, nameOf }: { log: readonly LogEntry[]; nameOf: (code: string) => string }) {
   const groups = useMemo<Group[]>(() => {
     const out: Group[] = [];
-    let cur: Group | null = null;
-    for (const e of log) {
-      if (e.kind === 'turnStarted') {
-        if (cur) out.push(cur);
-        cur = { key: e.id, header: e, events: [] };
-      } else if (cur) {
-        cur.events.push(e);
+    for (const { id, event } of log) {
+      if (event.type === 'turnStarted') {
+        out.push({ key: id, title: `Round ${event.round} · ${nameOf(event.playerId)}`, lines: [] });
+        continue;
       }
+      const text = describeEvent(event, nameOf);
+      if (!text) continue;
+      if (out.length === 0) out.push({ key: -1, title: 'Opening', lines: [] });
+      out[out.length - 1]!.lines.push({ id, type: event.type, text });
     }
-    if (cur) out.push(cur);
     return out;
-  }, [log]);
+  }, [log, nameOf]);
 
-  useEffect(() => {
-    ref.current?.scrollTo({ top: ref.current.scrollHeight });
-  }, [log.length]);
+  const [open, setOpen] = useState<Record<number, boolean>>({});
+  const latest = groups.at(-1)?.key;
+  const isOpen = (g: Group): boolean => open[g.key] ?? g.key === latest;
+  const visible = groups.filter((g) => g.lines.length > 0 || g.key === latest).slice(-40).reverse();
 
   return (
-    <div className="battle-log" ref={ref}>
-      <h3>Battle log</h3>
-      {groups.map((g, i) => {
-        const isLastTwo = i >= groups.length - 2;
-        const isCollapsed = collapsed[g.key] ?? !isLastTwo;
-        return (
+    <section className="panel" aria-label="Game log">
+      <h3>Game log</h3>
+      <div className="log-groups">
+        {visible.length === 0 && <p className="muted" style={{ margin: 0, fontSize: 13 }}>Nothing has happened yet.</p>}
+        {visible.map((g) => (
           <div key={g.key} className="log-group">
-            <button
-              className="log-group-header"
-              onClick={() => setCollapsed((c) => ({ ...c, [g.key]: !isCollapsed }))}
-            >
-              <span className="log-ts">
-                {new Date(g.header.ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-              </span>
-              <span>{g.header.text.replace(/^---\s*|\s*---$/g, '')}</span>
-              <span className="log-count">
-                {g.events.length} event{g.events.length === 1 ? '' : 's'}
-              </span>
-              <span className="log-caret">{isCollapsed ? '▸' : '▾'}</span>
+            <button className="log-group-header" aria-expanded={isOpen(g)} onClick={() => setOpen((m) => ({ ...m, [g.key]: !isOpen(g) }))}>
+              <span aria-hidden>{isOpen(g) ? '▾' : '▸'}</span>
+              {g.title}
+              <span className="count">{g.lines.length}</span>
             </button>
-            {!isCollapsed && (
+            {isOpen(g) && (
               <ol>
-                {g.events.map((e) => (
-                  <li key={e.id} className={`ev ev-${e.kind}`}>
-                    <span className="log-ts">
-                      {new Date(e.ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                    </span>
-                    {e.text}
+                {g.lines.map((l) => (
+                  <li key={l.id} className={`ev-${l.type}`}>
+                    {l.text}
                   </li>
                 ))}
               </ol>
             )}
           </div>
-        );
-      })}
-    </div>
+        ))}
+      </div>
+    </section>
   );
 }

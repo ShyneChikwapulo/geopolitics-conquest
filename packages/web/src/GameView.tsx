@@ -1,84 +1,191 @@
-import { useEffect, useRef, useState } from 'react';
-import { WorldMap } from './map/WorldMap';
-import { ActionPanel } from './ui/ActionPanel';
-import { PlayerList } from './ui/PlayerList';
-import { BattleLog } from './ui/BattleLog';
-import { GameOver } from './ui/GameOver';
-import { SpeedControls } from './ui/SpeedControls';
-import { Commentary } from './ui/Commentary';
-import { BattleOverlay } from './battle/BattleOverlay';
+import { useCallback, useEffect, useState } from 'react';
+import { getCountry } from '@conquest/data';
+import { DIFFICULTIES } from '@conquest/engine';
+import type { GameEvent } from '@conquest/engine';
+import { explainDecision } from './ai/advisor';
+import { FAST_FORWARD_SPEED } from './game/playback';
+import { shareUrl } from './game/share';
+import { useBattleCommentary } from './game/useBattleCommentary';
 import { useGame } from './game/useGame';
-import { TargetingProvider } from './game/targeting';
-import { Logo } from './ui/Logo';
+import { ActionDock } from './ui/ActionDock';
+import { BattleLog } from './ui/BattleLog';
+import { BoardStage } from './ui/BoardStage';
+import { CommentaryPanel } from './ui/CommentaryPanel';
+import { DecisionFeed } from './ui/DecisionFeed';
+import { EndBanner, type EndKind } from './ui/EndBanner';
+import { Flag } from './ui/Flag';
 import { HowToPlay } from './ui/HowToPlay';
+import { Logo } from './ui/Logo';
+import { PlayerList } from './ui/PlayerList';
+import { SpeedControls } from './ui/SpeedControls';
+import { StatusBar } from './ui/StatusBar';
 
-export function GameView({ onQuit }: { onQuit: () => void }) {
-  const { state, lastBattle, log } = useGame();
-  const current = state.players[state.currentPlayerIndex];
-  const [overlayId, setOverlayId] = useState<number | null>(null);
-  const [summary, setSummary] = useState<string | null>(null);
-  const [helpOpen, setHelpOpen] = useState(false);
-  const lastOverlayRef = useRef<number | null>(null);
+export interface GameViewProps {
+  /** Leave the game (it is saved and can be resumed from "My games"). */
+  onExit: () => void;
+  onHistory: () => void;
+  onNewGame: () => void;
+  onReplay: (gameId: string) => void;
+}
 
+export function GameView({ onExit, onHistory, onNewGame, onReplay }: GameViewProps) {
+  const g = useGame();
+  const { state, view, current, humanId } = g;
+  const [selectedFrom, setSelectedFrom] = useState<string | null>(null);
+  const [selectedTo, setSelectedTo] = useState<string | null>(null);
+  const [rules, setRules] = useState(false);
+  const [notice, setNotice] = useState<string | null>(null);
+  const [bannerDismissed, setBannerDismissed] = useState(false);
+
+  // A fresh start for the target pickers every time the game moves on.
   useEffect(() => {
-    if (lastBattle && lastBattle.id !== overlayId) setOverlayId(lastBattle.id);
-  }, [lastBattle?.id]);
+    setSelectedFrom(null);
+    setSelectedTo(null);
+  }, [state.version]);
 
-  useEffect(() => {
-    if (overlayId != null || lastOverlayRef.current == null) return;
-    const lastOverlayId = lastOverlayRef.current;
-    const after = log.filter((e) => e.id > lastOverlayId);
-    const outcome = after.find(
-      (e) => e.kind === 'territoryConquered' || e.kind === 'attackFailed' || e.kind === 'attackStopped',
-    );
-    if (outcome) {
-      setSummary(outcome.text);
-      setTimeout(() => setSummary(null), 3200);
+  const effectiveSpeed = g.fastToMe ? FAST_FORWARD_SPEED : g.speed;
+  const commentary = useBattleCommentary(current, {
+    llm: g.llm,
+    speed: effectiveSpeed,
+    nameOf: g.nameOf,
+    ownerOf: (code) => view.territories[code]?.ownerId ?? code,
+  });
+
+  const onSelect = useCallback(
+    (code: string): void => {
+      if (!g.canAct || state.phase !== 'action' || state.attackUsed) return;
+      const t = state.territories[code];
+      if (!t) return;
+      if (t.ownerId === humanId) {
+        setSelectedFrom(t.soldiers >= 2 ? (selectedFrom === code ? null : code) : null);
+        setSelectedTo(null);
+      } else if (selectedFrom) {
+        const owner = state.players.find((p) => p.id === t.ownerId);
+        if (owner?.hasTakenFirstTurn) setSelectedTo(code);
+        else flash(`${g.nameOf(t.ownerId)} is protected until their first turn.`);
+      }
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [g.canAct, state, humanId, selectedFrom],
+  );
+
+  const flash = (msg: string): void => {
+    setNotice(msg);
+    setTimeout(() => setNotice((n) => (n === msg ? null : n)), 2600);
+  };
+
+  const share = async (): Promise<void> => {
+    try {
+      await navigator.clipboard.writeText(shareUrl(g.record.id));
+      flash('Spectator link copied. Anyone with it can watch live.');
+    } catch {
+      flash(shareUrl(g.record.id));
     }
-    lastOverlayRef.current = null;
-  }, [overlayId, log]);
+  };
 
-  useEffect(() => {
-    if (overlayId != null) lastOverlayRef.current = overlayId;
-  }, [overlayId]);
+  const explain = g.llm
+    ? async (d: Extract<GameEvent, { type: 'npcDecision' }>, round: number): Promise<string | null> =>
+        explainDecision(g.llm!, { player: g.nameOf(d.playerId), kind: d.kind, heuristicReason: d.reason, metrics: d.metrics, round })
+    : undefined;
+
+  const human = state.players.find((p) => p.isHuman)!;
+  const humanOut = view.eliminated.includes(humanId);
+  const endKind: EndKind | null = view.winnerId ? (view.winnerId === humanId ? 'victory' : 'defeat') : humanOut && !bannerDismissed ? 'eliminated' : null;
+  const countriesHeld = Object.values(view.territories).filter((t) => t.ownerId === humanId).length;
+
+  const turnPlayer = view.currentPlayerId;
+  const iso = getCountry(turnPlayer)?.iso2 ?? 'un';
 
   return (
-    <TargetingProvider>
-      <div className="game-view">
-        <header className="game-header">
-          <div className="game-header-brand">
-            <Logo size={28} variant="gold" />
-            <h1>Geopolitics Conquest</h1>
-          </div>
-          <span className="game-meta">Round {state.round} · Turn {current?.name}</span>
-          <SpeedControls />
-          <button onClick={() => setHelpOpen(true)}>How to play</button>
-          <button onClick={() => {
-            const url = new URL(window.location.href);
-            url.searchParams.set('watch', state.id);
-            navigator.clipboard.writeText(url.toString());
-            alert('Watch link copied to clipboard:\n' + url.toString());
-          }}>Share</button>
-          <button onClick={onQuit}>New game</button>
-        </header>
-        <main className="game-main">
-          <section className="game-map">
-            <WorldMap />
-            {summary && (
-              <div className="battle-summary" onClick={() => setSummary(null)}>{summary}</div>
+    <div className="game-view">
+      <header className="game-header">
+        <div className="game-header-brand">
+          <Logo size={30} />
+          <h1>Geopolitics Conquest</h1>
+        </div>
+        <span className="chip">
+          Round <strong>{view.round}</strong>
+        </span>
+        <span className="turn-chip" aria-live="polite">
+          <span className="swatch" style={{ background: g.colorOf(turnPlayer) }} />
+          <Flag iso2={iso} size={14} />
+          {view.winnerId ? 'Game over' : turnPlayer === humanId ? 'Your turn' : `${g.nameOf(turnPlayer)}'s turn`}
+        </span>
+        <span className="chip" title={DIFFICULTIES[g.difficulty].blurb}>
+          {DIFFICULTIES[g.difficulty].label}
+        </span>
+        {notice && <span className="notice" role="status">{notice}</span>}
+        <span className="header-spacer" />
+        <SpeedControls
+          speed={g.speed}
+          setSpeed={g.setSpeed}
+          fastToMe={g.fastToMe}
+          setFastToMe={g.setFastToMe}
+          disableFastForward={g.canAct || !!view.winnerId}
+        />
+        <div className="header-actions">
+          <button onClick={() => void share()} title="Copy a link that lets anyone watch this game live">
+            🔗 <span className="txt">Share</span>
+          </button>
+          <button onClick={() => setRules(true)} title="How to play">
+            ? <span className="txt">Rules</span>
+          </button>
+          <button onClick={onHistory} title="Your saved games">
+            🗂 <span className="txt">My games</span>
+          </button>
+          <button onClick={onExit} title="Leave. The game is saved and can be resumed.">
+            ⌂ <span className="txt">Menu</span>
+          </button>
+        </div>
+      </header>
+
+      <div className="game-main">
+        <section className="game-stage" aria-label="Game board">
+          <BoardStage
+            players={g.players}
+            view={view}
+            current={current}
+            nameOf={g.nameOf}
+            colorOf={g.colorOf}
+            humanId={humanId}
+            speed={effectiveSpeed}
+            commentary={commentary}
+            selectedFrom={selectedFrom}
+            selectedTo={selectedTo}
+            onSelect={onSelect}
+          >
+            {endKind && (
+              <EndBanner
+                kind={endKind}
+                winnerName={view.winnerId ? g.nameOf(view.winnerId) : null}
+                rounds={view.round}
+                countriesHeld={countriesHeld}
+                battles={g.record.stats.battles}
+                conquests={g.record.stats.conquests}
+                onNewGame={onNewGame}
+                onHistory={onHistory}
+                onReplay={() => onReplay(g.record.id)}
+                onShare={() => void share()}
+                onKeepWatching={() => {
+                  setBannerDismissed(true);
+                  g.setFastToMe(true);
+                }}
+              />
             )}
-          </section>
-          <aside className="game-sidebar">
-            <PlayerList />
-            <Commentary />
-            <BattleLog />
-            <ActionPanel />
-          </aside>
-        </main>
-        {overlayId != null && <BattleOverlay onClose={() => setOverlayId(null)} />}
-        {state.phase === 'finished' && <GameOver />}
-        {helpOpen && <HowToPlay onClose={() => setHelpOpen(false)} />}
+          </BoardStage>
+          <StatusBar />
+          <ActionDock selectedFrom={selectedFrom} selectedTo={selectedTo} setSelectedFrom={setSelectedFrom} setSelectedTo={setSelectedTo} />
+        </section>
+
+        <aside className="game-side" aria-label="Game information">
+          <PlayerList players={g.players} view={view} colorOf={g.colorOf} nameOf={g.nameOf} humanId={human.id} strategistId={g.strategistId} />
+          <CommentaryPanel items={commentary} aiEnabled={g.llm !== null && effectiveSpeed <= 2} />
+          <DecisionFeed log={g.log} nameOf={g.nameOf} colorOf={g.colorOf} explain={explain} round={view.round} />
+          <BattleLog log={g.log} nameOf={g.nameOf} />
+        </aside>
       </div>
-    </TargetingProvider>
+
+      {rules && <HowToPlay onClose={() => setRules(false)} />}
+    </div>
   );
 }
