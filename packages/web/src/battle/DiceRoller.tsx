@@ -52,7 +52,7 @@ export function DiceRoller({ value, rolling, durationMs, variant, size = 44 }: D
     ? `transform ${Math.max(durationMs * 0.9, 60)}ms cubic-bezier(.25,.6,.35,1)`
     : `transform ${Math.max(durationMs * 0.15, 80)}ms cubic-bezier(.34,1.56,.64,1)`;
 
-  const pip = variant === 'attacker' ? '#1d4ed8' : '#b91c1c';
+  const pip = variant === 'attacker' ? '#d9431f' : '#2a2723';
   return (
     <div
       className={`dice-cube-scene ${rolling ? 'rolling' : 'landed'}`}

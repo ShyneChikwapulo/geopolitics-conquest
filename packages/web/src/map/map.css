@@ -4,14 +4,15 @@
   flex: 1 1 auto;
   min-height: 0;
   min-width: 0;
-  background-color: #d6c4a0;
+  background-color: #1b1a17;
   background-image:
-    radial-gradient(ellipse at 50% 45%, rgba(0, 0, 0, 0) 55%, rgba(60, 38, 12, 0.5) 100%),
-    url('/paper.jpg');
-  background-size: cover, cover;
+    radial-gradient(ellipse at 50% 45%, rgba(0, 0, 0, 0) 55%, rgba(0, 0, 0, 0.5) 100%),
+    linear-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
+  background-size: cover, 48px 48px, 48px 48px;
   background-position: center;
-  border-radius: 12px;
-  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.07), 0 14px 48px rgba(0, 0, 0, 0.6);
+  border-radius: 4px;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.1), 0 14px 48px rgba(0, 0, 0, 0.5);
   overflow: hidden;
 }
 .world-map {
@@ -33,7 +34,7 @@
 
 /* ---------- badges ---------- */
 .badge:focus-visible { outline: none; }
-.badge:focus-visible .badge-disc { stroke: #1d4ed8; stroke-width: 4; }
+.badge:focus-visible .badge-disc { stroke: #f2ede2; stroke-width: 4; }
 .badge:hover .badge-disc { filter: brightness(1.12); }
 .count { transform-box: fill-box; transform-origin: center; animation: count-pop 0.5s ease-out; }
 .count.down { animation: count-down 0.7s ease-out; }
@@ -50,7 +51,7 @@
   .count, .count.down, .count.up, .turn-ring, .attack-arc, .country-shape.flash-hit, .country-shape.flash-conquer { animation: none; }
 }
 
-.map-skeleton { position: absolute; inset: 0; display: grid; place-items: center; color: #3a2f1f; font-weight: 600; letter-spacing: 0.04em; }
+.map-skeleton { position: absolute; inset: 0; display: grid; place-items: center; color: #b9b3a8; font-weight: 600; letter-spacing: 0.04em; }
 .map-skeleton .spinner { margin-right: 10px; }
 
 /* ---------- ticker: the latest event, over the top of the map ---------- */
@@ -60,7 +61,7 @@
   left: 50%;
   transform: translateX(-50%);
   max-width: min(760px, 92%);
-  background: rgba(14, 22, 38, 0.9);
+  background: rgba(17, 16, 14, 0.92);
   color: var(--text);
   border: 1px solid var(--border);
   border-radius: 999px;

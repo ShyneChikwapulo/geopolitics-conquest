@@ -49,7 +49,7 @@ export function BattleDrawer({ event, before, attacker, defender, speed, comment
         <div className="battle-drawer-side">
           <span className="battle-round-tag">Battle round {event.round} · {total} {total === 1 ? 'die' : 'dice'} each</span>
           <div className="battle-sides">
-            <div className="side" style={{ color: '#bfdbfe' }}>
+            <div className="side" style={{ color: '#ff9a7e' }}>
               <span className="dot" style={{ background: attacker.color }} />
               <span className="tag">Attack</span>
               <span className="nm">{attacker.country}</span>
@@ -58,7 +58,7 @@ export function BattleDrawer({ event, before, attacker, defender, speed, comment
                 {allLanded ? event.attackerSoldiersAfter : before.attacker}
               </span>
             </div>
-            <div className="side" style={{ color: '#fecaca' }}>
+            <div className="side" style={{ color: '#e9e2d6' }}>
               <span className="dot" style={{ background: defender.color }} />
               <span className="tag">Defend</span>
               <span className="nm">{defender.country}</span>

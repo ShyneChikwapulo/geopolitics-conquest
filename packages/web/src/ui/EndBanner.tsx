@@ -17,7 +17,7 @@ interface Props {
   onKeepWatching?: () => void;
 }
 
-const CONFETTI = ['#fbbf24', '#3b82f6', '#22c55e', '#ef4444', '#a855f7', '#06b6d4'];
+const CONFETTI = ['#ff5c35', '#6a8ca9', '#a6aa64', '#c87c42', '#efe8da', '#8f7bb3'];
 
 function Confetti() {
   const pieces = useMemo(
@@ -42,14 +42,14 @@ function Confetti() {
 function Crown() {
   return (
     <svg className="crown" viewBox="0 0 96 96" aria-hidden>
-      <path d="M12 70 L8 30 L30 48 L48 18 L66 48 L88 30 L84 70 Z" fill="#fbbf24" stroke="#92400e" strokeWidth="3" strokeLinejoin="round" />
-      <rect x="12" y="70" width="72" height="10" rx="3" fill="#f59e0b" stroke="#92400e" strokeWidth="3" />
-      <circle cx="8" cy="30" r="5" fill="#fde68a" stroke="#92400e" strokeWidth="2" />
-      <circle cx="48" cy="16" r="5.5" fill="#fde68a" stroke="#92400e" strokeWidth="2" />
-      <circle cx="88" cy="30" r="5" fill="#fde68a" stroke="#92400e" strokeWidth="2" />
-      <circle cx="30" cy="62" r="3.5" fill="#ef4444" />
-      <circle cx="48" cy="62" r="3.5" fill="#3b82f6" />
-      <circle cx="66" cy="62" r="3.5" fill="#22c55e" />
+      <path d="M12 70 L8 30 L30 48 L48 18 L66 48 L88 30 L84 70 Z" fill="#ff5c35" stroke="#5d2417" strokeWidth="3" strokeLinejoin="round" />
+      <rect x="12" y="70" width="72" height="10" rx="3" fill="#c84a28" stroke="#5d2417" strokeWidth="3" />
+      <circle cx="8" cy="30" r="5" fill="#f2ede2" stroke="#5d2417" strokeWidth="2" />
+      <circle cx="48" cy="16" r="5.5" fill="#f2ede2" stroke="#5d2417" strokeWidth="2" />
+      <circle cx="88" cy="30" r="5" fill="#f2ede2" stroke="#5d2417" strokeWidth="2" />
+      <circle cx="30" cy="62" r="3.5" fill="#c87c42" />
+      <circle cx="48" cy="62" r="3.5" fill="#6a8ca9" />
+      <circle cx="66" cy="62" r="3.5" fill="#a6aa64" />
     </svg>
   );
 }
@@ -57,9 +57,9 @@ function Crown() {
 function CrackedMap() {
   return (
     <svg className="cracked" viewBox="0 0 120 90" aria-hidden>
-      <path d="M8 22 C20 8 44 6 60 12 C78 6 100 10 112 24 C118 40 112 62 100 74 C84 84 60 82 44 84 C26 80 10 66 6 48 C4 38 4 30 8 22 Z" fill="#3a2f1f" stroke="#7a6a52" strokeWidth="2" />
-      <path d="M60 12 L54 30 L68 44 L56 58 L66 84" fill="none" stroke="#fca5a5" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
-      <path d="M54 30 L36 38 M68 44 L90 40 M56 58 L40 68" fill="none" stroke="#fca5a5" strokeWidth="1.8" strokeLinecap="round" />
+      <path d="M8 22 C20 8 44 6 60 12 C78 6 100 10 112 24 C118 40 112 62 100 74 C84 84 60 82 44 84 C26 80 10 66 6 48 C4 38 4 30 8 22 Z" fill="#26231f" stroke="#69706b" strokeWidth="2" />
+      <path d="M60 12 L54 30 L68 44 L56 58 L66 84" fill="none" stroke="#ff7958" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M54 30 L36 38 M68 44 L90 40 M56 58 L40 68" fill="none" stroke="#ff7958" strokeWidth="1.8" strokeLinecap="round" />
     </svg>
   );
 }

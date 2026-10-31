@@ -11,6 +11,7 @@ import { BattleLog } from './BattleLog';
 import { BoardStage } from './BoardStage';
 import { CommentaryPanel } from './CommentaryPanel';
 import { DecisionFeed } from './DecisionFeed';
+import { IconDice, IconFastForward, IconPause, IconPlay, IconReplay, IconRewind, IconSkipStart, IconStepBack, IconStepForward } from './Icons';
 import { Logo } from './Logo';
 import { PlayerList } from './PlayerList';
 
@@ -149,15 +150,15 @@ export function Replay({ gameId, onBack }: { gameId: string; onBack: () => void 
               aria-valuetext={`Event ${index} of ${total}`}
             />
             <div className="replay-row">
-              <button onClick={() => jump(0)} aria-label="Back to the start">⏮</button>
-              <button onClick={() => jump(nextMatching(isTurn, Math.max(0, index - 2), -1))} aria-label="Previous turn">⏪ Turn</button>
-              <button onClick={() => jump(index - 1)} aria-label="Step back one event" disabled={index === 0}>◀</button>
+              <button onClick={() => jump(0)} aria-label="Back to the start"><IconSkipStart /></button>
+              <button onClick={() => jump(nextMatching(isTurn, Math.max(0, index - 2), -1))} aria-label="Previous turn"><IconRewind /> Turn</button>
+              <button onClick={() => jump(index - 1)} aria-label="Step back one event" disabled={index === 0}><IconStepBack /></button>
               <button className="gold" onClick={() => { if (index >= total) jump(0); setPlaying((p) => !p); }} style={{ minWidth: 96 }}>
-                {playing ? '⏸ Pause' : index >= total ? '↺ Restart' : '▶ Play'}
+                {playing ? <><IconPause /> Pause</> : index >= total ? <><IconReplay /> Restart</> : <><IconPlay /> Play</>}
               </button>
-              <button onClick={() => { setPlaying(false); setIndex((i) => Math.min(total, i + 1)); }} aria-label="Step forward one event" disabled={index >= total}>▶</button>
-              <button onClick={() => jump(nextMatching(isTurn, index, 1) + 1)} aria-label="Next turn">Turn ⏩</button>
-              <button onClick={() => jump(nextMatching(isBattle, index, 1) + 1)} aria-label="Next battle round">🎲 Next battle</button>
+              <button onClick={() => { setPlaying(false); setIndex((i) => Math.min(total, i + 1)); }} aria-label="Step forward one event" disabled={index >= total}><IconStepForward /></button>
+              <button onClick={() => jump(nextMatching(isTurn, index, 1) + 1)} aria-label="Next turn">Turn <IconFastForward /></button>
+              <button onClick={() => jump(nextMatching(isBattle, index, 1) + 1)} aria-label="Next battle round"><IconDice /> Next battle</button>
               <span className="header-spacer" />
               <span className="pos">event {index} / {total}</span>
               <span className="speed-controls" role="group" aria-label="Replay speed">

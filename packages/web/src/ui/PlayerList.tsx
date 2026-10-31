@@ -1,6 +1,7 @@
 import { getCountry } from '@conquest/data';
 import type { BoardView, Player } from '@conquest/engine';
 import { Flag } from './Flag';
+import { IconShield, IconSpark } from './Icons';
 
 interface Props {
   players: readonly Player[];
@@ -35,8 +36,8 @@ export function PlayerList({ players, view, colorOf, nameOf, humanId, strategist
             <span className="nm">
               <span className="txt">{nameOf(p.id)}</span>
               {p.id === humanId && <span className="tag you">you</span>}
-              {p.id === strategistId && <span className="tag brain" title="Its attack choices are made by an AI advisor">🧠 AI</span>}
-              {protectedNow && <span className="tag shield" title="Protected until its first turn: cannot be attacked yet">🛡</span>}
+              {p.id === strategistId && <span className="tag brain" title="Its attack choices are made by an AI advisor"><IconSpark /> AI</span>}
+              {protectedNow && <span className="tag shield" title="Protected until its first turn: cannot be attacked yet" role="img" aria-label="Protected until its first turn"><IconShield /></span>}
             </span>
             <span className="stats">{out ? 'eliminated' : `${countries}c · ${soldiers}s`}</span>
           </li>

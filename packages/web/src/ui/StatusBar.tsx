@@ -8,7 +8,7 @@ export function StatusBar() {
     <div className="status-bar" role="status" aria-live="polite">
       {thinkingName && (
         <span className="status">
-          <span className="spinner" /> 🧠 {thinkingName} is consulting its AI advisor…
+          <span className="spinner" /> {thinkingName} is consulting its AI advisor…
         </span>
       )}
       {g.saving && !thinkingName && (

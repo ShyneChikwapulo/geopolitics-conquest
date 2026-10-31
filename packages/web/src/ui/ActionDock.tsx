@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { expectedAttackerLosses, territoriesOf, winProbability, type Action } from '@conquest/engine';
 import { useGame } from '../game/useGame';
+import { IconDice, IconSwords } from './Icons';
 
 interface Props {
   selectedFrom: string | null;
@@ -153,13 +154,13 @@ export function ActionDock({ selectedFrom, selectedTo, setSelectedFrom, setSelec
       <div className="dock">
         <div className="dock-head">
           <h2>
-            {from.name} ({from.soldiers}) ⚔ {to.name} ({to.soldiers})
+            {from.name} ({from.soldiers}) <IconSwords /> {to.name} ({to.soldiers})
           </h2>
           <Odds attackers={from.soldiers} defenders={to.soldiers} />
         </div>
         <div className="dock-row">
           <button ref={rollRef} className="gold roll-btn" disabled={working} onClick={() => void run({ type: 'roll', playerId: humanId })}>
-            🎲 Roll the dice
+            <IconDice /> Roll the dice
           </button>
           <button className="danger" disabled={working} onClick={() => void run({ type: 'stopAttack', playerId: humanId })} title="Calling off the attack ends your turn">
             Stop attack · end turn
@@ -235,7 +236,7 @@ export function ActionDock({ selectedFrom, selectedTo, setSelectedFrom, setSelec
               </option>
             ))}
           </select>
-          <span aria-hidden>⚔</span>
+          <IconSwords />
           <select value={to} onChange={(e) => setSelectedTo(e.target.value || null)} aria-label="Attack target">
             <option value="">Target…</option>
             {enemies.map((t) => {
@@ -243,7 +244,7 @@ export function ActionDock({ selectedFrom, selectedTo, setSelectedFrom, setSelec
               const holder = t.ownerId === t.code ? '' : ` · held by ${g.nameOf(t.ownerId)}`;
               return (
                 <option key={t.code} value={t.code} disabled={prot}>
-                  {t.name} ({t.soldiers}){holder}{prot ? ' · protected 🛡' : ''}
+                  {t.name} ({t.soldiers}){holder}{prot ? ' · protected' : ''}
                 </option>
               );
             })}

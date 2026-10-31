@@ -29,7 +29,7 @@
 .dice-face {
   position: absolute;
   inset: 0;
-  background: linear-gradient(145deg, #ffffff 0%, #e2e8f0 100%);
+  background: linear-gradient(145deg, #f7f2e8 0%, #ddd5c4 100%);
   border-radius: calc(var(--die) * 0.2);
   box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.06), inset 0 -3px 6px rgba(0, 0, 0, 0.12);
   display: grid;
@@ -67,12 +67,12 @@
 
 .battle-drawer-inner {
   pointer-events: auto;
-  background-color: #0e2a1c;
-  background-image: linear-gradient(rgba(0, 0, 0, 0.5), rgba(0, 0, 0, 0.72)), url('/felt.jpg');
+  background-color: #151411;
+  background-image: none;
   background-size: cover;
   background-position: center;
-  border: 1px solid rgba(255, 255, 255, 0.16);
-  border-radius: 14px;
+  border: 1px solid rgba(255, 92, 53, 0.35);
+  border-radius: 6px;
   box-shadow: 0 16px 44px rgba(0, 0, 0, 0.6);
   padding: 12px 16px 12px;
   display: grid;
@@ -91,7 +91,7 @@
 .side .count { margin-left: auto; font-variant-numeric: tabular-nums; }
 .side .count .was { opacity: 0.55; text-decoration: line-through; margin-right: 6px; font-weight: 500; }
 .battle-outcome { font-size: 13px; font-weight: 700; color: #e6ecf5; min-height: 1.4em; }
-.battle-outcome .loss { color: #fca5a5; }
+.battle-outcome .loss { color: #ff9a7e; }
 .battle-round-tag { font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: #c7d2e5; }
 
 .dice-pairs { display: flex; flex-wrap: wrap; justify-content: center; align-content: center; gap: 8px; padding: 2px 0; min-width: 0; }
@@ -107,13 +107,13 @@
   border: 1px solid rgba(255, 255, 255, 0.08);
   transition: background 0.25s, border-color 0.25s, transform 0.25s;
 }
-.pair.attacker { background: rgba(29, 78, 216, 0.34); border-color: rgba(96, 165, 250, 0.6); }
-.pair.defender { background: rgba(185, 28, 28, 0.34); border-color: rgba(248, 113, 113, 0.6); }
+.pair.attacker { background: rgba(255, 92, 53, 0.16); border-color: rgba(255, 92, 53, 0.6); }
+.pair.defender { background: rgba(255, 255, 255, 0.06); border-color: rgba(255, 255, 255, 0.28); }
 .pair.tie { background: rgba(148, 163, 184, 0.22); border-color: rgba(203, 213, 225, 0.4); }
 .pair .vs { color: #c7d2e5; font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; }
 .pair .out { font-weight: 800; font-size: 15px; width: 18px; text-align: center; }
-.pair .out.attacker { color: #4ade80; }
-.pair .out.defender { color: #f87171; }
+.pair .out.attacker { color: #ff7958; }
+.pair .out.defender { color: #e9e2d6; }
 .pair .out.tie { color: #cbd5e1; }
 
 .battle-commentary {

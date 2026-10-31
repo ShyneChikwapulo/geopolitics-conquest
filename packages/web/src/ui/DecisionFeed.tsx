@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import type { GameEvent } from '@conquest/engine';
 import type { LogEntry } from '../game/playback';
+import { IconSpark } from './Icons';
 
 type Decision = Extract<GameEvent, { type: 'npcDecision' }>;
 
@@ -39,7 +40,7 @@ export function DecisionFeed({ log, nameOf, colorOf, explain, round }: Props) {
               <span className="who" style={{ color: colorOf(d.playerId) }}>{nameOf(d.playerId)}</span>
               {d.reason}
               <div className="meta">
-                {d.source === 'llm' && <span className="tag brain" title="Chosen by the AI advisor from options the game engine had already verified">🧠 AI chose</span>}
+                {d.source === 'llm' && <span className="tag brain" title="Chosen by the AI advisor from options the game engine had already verified"><IconSpark /> AI chose</span>}
                 {d.metrics?.winProbability != null && <span className="tag">win {Math.round(d.metrics.winProbability * 100)}%</span>}
                 {d.metrics?.expectedLosses != null && <span className="tag">~{Math.round(d.metrics.expectedLosses * 10) / 10} lost</span>}
               </div>
