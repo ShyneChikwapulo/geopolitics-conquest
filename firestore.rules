@@ -1,8 +1,96 @@
 rules_version = '2';
+
+// Geopolitics Conquest: Firestore security rules.
+//
+// Model: games are PUBLIC TO READ (the brief requires any visitor with the link to be able to watch a game)
+// but can only be CREATED / CHANGED / DELETED by the signed-in user who owns them.
+//
+//   games/{gameId}                 one document per game (snapshot + metadata)
+//   games/{gameId}/events/{seq}    append-only batches of game events
+//
+// Honest limits: there is no server in this architecture, so the rules cannot re-run the game engine to
+// prove a move is legal. They guarantee WHO may write, that ownership cannot be hijacked, that history is
+// append-only, and that documents have the expected shape and size. A signed-in owner who tampers with their
+// own browser can still falsify their own game, which affects nobody else.
+
 service cloud.firestore {
   match /databases/{database}/documents {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(gameId) {
+      // getAfter() so the check also works inside a write batch that creates the game and its first events.
+      return signedIn()
+        && getAfter(/databases/$(database)/documents/games/$(gameId)).data.ownerUid == request.auth.uid;
+    }
+
+    function validGame(d) {
+      return d.keys().hasOnly([
+          'id', 'ownerUid', 'humanCode', 'difficulty', 'seed', 'strategistId',
+          'createdAt', 'updatedAt', 'status', 'round', 'version', 'batches', 'winnerId',
+          'stats', 'initial', 'state', 'summary'
+        ])
+        && d.id is string
+        && d.ownerUid is string
+        && d.humanCode is string && d.humanCode.size() == 3
+        && d.difficulty in ['easy', 'medium', 'hard']
+        && d.status in ['active', 'finished']
+        && d.round is int && d.round >= 1 && d.round <= 1000
+        && d.version is int && d.version >= 0
+        && d.batches is int && d.batches >= 0
+        && d.initial is map
+        && d.state is map;
+    }
+
     match /games/{gameId} {
-      allow read, write: if true;
+      // Anyone (including signed-out visitors) may watch a game and list games for platform-wide analytics.
+      allow get, list: if true;
+
+      allow create: if signedIn()
+        && request.resource.data.ownerUid == request.auth.uid
+        && request.resource.data.id == gameId
+        && request.resource.data.status == 'active'
+        && request.resource.data.version == 0
+        && validGame(request.resource.data);
+
+      // Only the owner may update; ownership, setup and the starting board are immutable;
+      // the version can only go up (a stale tab cannot overwrite newer progress).
+      allow update: if signedIn()
+        && resource.data.ownerUid == request.auth.uid
+        && request.resource.data.ownerUid == resource.data.ownerUid
+        && request.resource.data.id == resource.data.id
+        && request.resource.data.humanCode == resource.data.humanCode
+        && request.resource.data.seed == resource.data.seed
+        && request.resource.data.difficulty == resource.data.difficulty
+        && request.resource.data.createdAt == resource.data.createdAt
+        && request.resource.data.initial == resource.data.initial
+        && request.resource.data.version > resource.data.version
+        && request.resource.data.batches >= resource.data.batches
+        && resource.data.status == 'active'
+        && validGame(request.resource.data);
+
+      allow delete: if signedIn() && resource.data.ownerUid == request.auth.uid;
+
+      match /events/{seq} {
+        allow get, list: if true;
+
+        // Append-only: a batch can be created once and never edited (so history cannot be rewritten).
+        allow create: if isOwner(gameId)
+          && request.resource.data.keys().hasOnly(['seq', 'at', 'events'])
+          && request.resource.data.seq is int
+          && request.resource.data.events is list
+          && request.resource.data.events.size() <= 250;
+        allow update: if false;
+        allow delete: if signedIn()
+          && get(/databases/$(database)/documents/games/$(gameId)).data.ownerUid == request.auth.uid;
+      }
+    }
+
+    // Nothing else is readable or writable.
+    match /{document=**} {
+      allow read, write: if false;
     }
   }
 }
