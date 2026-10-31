@@ -1,229 +1,310 @@
-import { createContext, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { createContext, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { COUNTRIES, getCountry } from '@conquest/data';
 import {
-  advanceNpcs,
+  advanceNpcsAsync,
   applyAction,
+  boardFromState,
   createGame,
   currentPlayer,
-  IllegalActionError,
-  BALANCED,
-  AGGRESSIVE,
-  DEFENSIVE,
+  DIFFICULTIES,
+  makeDecider,
+  RunAbortedError,
+  validateAction,
   type Action,
+  type BoardView,
+  type Difficulty,
   type GameEvent,
   type GameState,
-  type NpcProfile,
+  type Player,
 } from '@conquest/engine';
-import { COUNTRIES } from '@conquest/data';
-import { recordAction, saveGame } from './persistence';
+import { createLlmAdvisor } from '../ai/advisor';
+import { config } from '../config';
+import type { LlmSettings } from '../config';
+import { colorFor } from './colors';
+import { DEFAULT_SPEED, FAST_FORWARD_SPEED, useEventPlayer, type LogEntry, type Speed } from './playback';
+import type { GameStore } from './store/GameStore';
+import type { GameRecord, GameSetup } from './types';
 
-export type Speed = '1x' | '4x' | '16x' | 'instant';
-export const SPEED_MS: Record<Speed, number> = { '1x': 1200, '4x': 400, '16x': 120, instant: 0 };
-export const ROLL_MS: Record<Speed, number> = { '1x': 900, '4x': 420, '16x': 180, instant: 0 };
-
-export type Difficulty = 'easy' | 'medium' | 'hard';
-const DIFFICULTY_PROFILE: Record<Difficulty, NpcProfile> = {
-  easy: DEFENSIVE,
-  medium: BALANCED,
-  hard: AGGRESSIVE,
-};
-
-export interface BattleRoundSnapshot {
-  id: number;
-  from: string;
-  to: string;
-  round: number;
-  pairs: { attacker: number; defender: number; result: 'attacker' | 'defender' | 'tie' }[];
-  attackerLosses: number;
-  defenderLosses: number;
-  attackerSoldiersBefore: number;
-  defenderSoldiersBefore: number;
-  attackerSoldiersAfter: number;
-  defenderSoldiersAfter: number;
-  attackerPlayerId: string;
-  defenderPlayerId: string;
-}
-
-export interface LogEntry {
-  id: number;
-  kind: GameEvent['type'];
-  text: string;
-  playerId?: string;
-  ts: number;
-}
+export type GameIntent =
+  | { kind: 'new'; humanCode: string; difficulty: Difficulty }
+  | { kind: 'resume'; gameId: string };
 
 export interface GameContextValue {
+  record: GameRecord;
+  /** The authoritative engine state (always saved before it is shown). */
   state: GameState;
+  /** The board as currently presented: it trails `state` while events are being played back. */
+  view: BoardView;
+  players: Player[];
+  humanId: string;
+  difficulty: Difficulty;
+  /** The event being presented right now (drives the dice, the arrows and the commentary). */
+  current: { id: number; event: GameEvent } | null;
   log: LogEntry[];
-  dispatch: (action: Action) => void;
+  /** True while events are being played back. */
+  busy: boolean;
+  saving: boolean;
+  /** Set when saving a computed NPC run failed; `retry` tries again. */
+  saveError: string | null;
+  retry: () => void;
+  /** The strategist NPC currently consulting its advisor, if any. */
+  thinking: string | null;
+  canAct: boolean;
   speed: Speed;
   setSpeed: (s: Speed) => void;
-  isHumanTurn: boolean;
-  lastBattle: BattleRoundSnapshot | null;
-  difficulty: Difficulty;
-  setDifficulty: (d: Difficulty) => void;
-  npcProfileLabel: (playerId: string) => string;
-  revealedSteps: number;
-  setRevealedSteps: (n: number) => void;
+  fastToMe: boolean;
+  setFastToMe: (v: boolean) => void;
+  /** Applies a human action. Resolves with an error message, or null on success. */
+  dispatch: (action: Action) => Promise<string | null>;
+  nameOf: (code: string) => string;
+  colorOf: (playerId: string) => string;
+  llm: LlmSettings | null;
+  strategistId: string | null;
 }
 
-export const GameCtx = createContext<GameContextValue | null>(null);
+export const GameContext = createContext<GameContextValue | null>(null);
 
-function describeEvent(ev: GameEvent, s: GameState): string {
-  const nameOf = (id: string) => s.players.find((p) => p.id === id)?.name ?? id;
-  switch (ev.type) {
-    case 'gameStarted':
-      return `Game started. ${nameOf(ev.humanPlayerId)} is you.`;
-    case 'turnStarted':
-      return `--- Round ${ev.round}: ${nameOf(ev.playerId)}'s turn ---`;
-    case 'reinforcementsGranted':
-      return `${nameOf(ev.playerId)} gained ${ev.amount} soldiers across ${ev.territoriesHeld} territories.`;
-    case 'reinforcementsAllocated':
-      return `${nameOf(ev.playerId)} placed ${Object.values(ev.allocations).reduce((a, b) => a + b, 0)} soldiers.`;
-    case 'transferred':
-      return `${nameOf(ev.playerId)} moved ${ev.count} soldiers ${ev.from} → ${ev.to}.`;
-    case 'attackStarted':
-      return `${nameOf(ev.playerId)} attacks ${ev.to} from ${ev.from} (${ev.attackerSoldiers} vs ${ev.defenderSoldiers}).`;
-    case 'battleRound': {
-      const pairs = ev.pairs
-        .map((p) => `${p.attacker}v${p.defender}${p.result === 'tie' ? '=' : p.result === 'attacker' ? '✓' : '✗'}`)
-        .join(' ');
-      return `Round ${ev.round}: ${pairs} → attacker -${ev.attackerLosses}, defender -${ev.defenderLosses}.`;
-    }
-    case 'territoryConquered':
-      return `⚑ ${nameOf(ev.playerId)} conquered ${ev.to} from ${nameOf(ev.previousOwnerId)} (+${ev.gained} soldiers)!`;
-    case 'captureCompleted':
-      return `${nameOf(ev.playerId)} moved ${ev.moved} soldiers into ${ev.to}.`;
-    case 'attackFailed':
-      return `✗ ${nameOf(ev.playerId)}'s attack on ${ev.to} failed.`;
-    case 'attackStopped':
-      return `${nameOf(ev.playerId)} stopped the attack on ${ev.to}.`;
-    case 'playerEliminated':
-      return `☠ ${nameOf(ev.playerId)} has been eliminated by ${nameOf(ev.byPlayerId)}!`;
-    case 'turnEnded':
-      return `${nameOf(ev.playerId)}'s turn ends.`;
-    case 'gameWon':
-      return `👑 ${nameOf(ev.playerId)} has conquered the world!`;
-    case 'npcDecision':
-      return `[${ev.kind}] ${ev.reason}`;
-  }
+function randomSeed(): number {
+  return crypto.getRandomValues(new Uint32Array(1))[0]!;
 }
 
-export function GameProvider({ humanCode, seed, difficulty: initialDifficulty = 'medium', children }: {
-  humanCode: string;
-  seed: number;
-  difficulty?: Difficulty;
-  children: React.ReactNode;
-}) {
-  const [state, setState] = useState<GameState>(
-    () => createGame({ id: `g-${seed}-${Date.now()}`, seed, allCountries: COUNTRIES, humanCode }).state,
-  );
-  const [log, setLog] = useState<LogEntry[]>([]);
-  const [lastBattle, setLastBattle] = useState<BattleRoundSnapshot | null>(null);
-  const [speed, setSpeed] = useState<Speed>('4x');
-  const [difficulty, setDifficulty] = useState<Difficulty>(initialDifficulty);
-  const [revealedSteps, setRevealedSteps] = useState(0);
-  const logId = useRef(0);
-  const speedRef = useRef(speed);
-  const difficultyRef = useRef(difficulty);
-  useEffect(() => { speedRef.current = speed; }, [speed]);
-  useEffect(() => { difficultyRef.current = difficulty; }, [difficulty]);
-  const npcRunningRef = useRef(false);
+/**
+ * The one NPC (if the LLM is available) whose attack choices come from the advisor.
+ * It is the strongest NPC at the start (most soldiers; ties broken by the seed): the strongest rival is the least
+ * likely to be knocked out in the first rounds, so the advisor actually gets to make decisions.
+ */
+export function pickStrategist(state: GameState, seed: number, llmAvailable: boolean): string | null {
+  if (!llmAvailable) return null;
+  const npcs = state.players.filter((p) => !p.isHuman);
+  if (npcs.length === 0) return null;
+  const army = (id: string): number =>
+    Object.values(state.territories)
+      .filter((t) => t.ownerId === id)
+      .reduce((n, t) => n + t.soldiers, 0);
+  const best = Math.max(...npcs.map((p) => army(p.id)));
+  const strongest = npcs.filter((p) => army(p.id) === best);
+  return strongest[seed % strongest.length]!.id;
+}
 
-  const appendEvents = useCallback((events: GameEvent[], s: GameState) => {
-    setLog((prev) => {
-      const next = [...prev];
-      for (const ev of events) {
-        const id = ++logId.current;
-        next.push({
-          id,
-          kind: ev.type,
-          text: describeEvent(ev, s),
-          playerId: 'playerId' in ev ? (ev as any).playerId : undefined,
-          ts: Date.now(),
-        });
-        if (ev.type === 'battleRound') {
-          const defenderId = s.territories[ev.to]?.ownerId ?? ev.to;
-          setLastBattle({
-            id,
-            from: ev.from,
-            to: ev.to,
-            round: ev.round,
-            pairs: ev.pairs,
-            attackerLosses: ev.attackerLosses,
-            defenderLosses: ev.defenderLosses,
-            attackerSoldiersBefore: ev.attackerSoldiersAfter + ev.attackerLosses,
-            defenderSoldiersBefore: ev.defenderSoldiersAfter + ev.defenderLosses,
-            attackerSoldiersAfter: ev.attackerSoldiersAfter,
-            defenderSoldiersAfter: ev.defenderSoldiersAfter,
-            attackerPlayerId: ev.playerId,
-            defenderPlayerId: defenderId,
-          });
-        }
-      }
-      return next.slice(-300);
-    });
+function friendlySaveError(e: unknown): string {
+  const code = typeof e === 'object' && e && 'code' in e ? String((e as { code: unknown }).code) : '';
+  if (code === 'permission-denied') return 'Could not save: permission denied. Sign in again, or this game may be open in another tab.';
+  if (code === 'unavailable' || code === 'failed-precondition') return 'Could not reach the database. Check your connection and try again.';
+  return e instanceof Error ? e.message : 'Could not save your move. Please try again.';
+}
+
+interface ProviderProps {
+  store: GameStore;
+  intent: GameIntent;
+  llm?: LlmSettings | null;
+  /** Shown while the game is being created or loaded. */
+  loading?: ReactNode;
+  /** Shown if it cannot be created or loaded. */
+  failed?: (message: string) => ReactNode;
+  children: ReactNode;
+}
+
+export function GameProvider({ store, intent, llm = config.llm, loading = null, failed, children }: ProviderProps) {
+  const [record, setRecord] = useState<GameRecord | null>(null);
+  const [state, setState] = useState<GameState | null>(null);
+  const [initError, setInitError] = useState<string | null>(null);
+  const [speed, setSpeed] = useState<Speed>(DEFAULT_SPEED);
+  const [fastToMe, setFastToMe] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [thinking, setThinking] = useState<string | null>(null);
+
+  const player = useEventPlayer(fastToMe ? FAST_FORWARD_SPEED : speed);
+  const { enqueue, reset } = player;
+
+  // Refs always hold the latest values so async code never reads a stale closure.
+  const recordRef = useRef<GameRecord | null>(null);
+  const stateRef = useRef<GameState | null>(null);
+  const mounted = useRef(true);
+  const initStarted = useRef(false);
+  const npcRunning = useRef(false);
+  const dispatching = useRef(false);
+
+  // `mounted` is restored on re-mount, which keeps React StrictMode's simulated unmount from cancelling work.
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+    };
   }, []);
 
-  const dispatch = useCallback((action: Action) => {
-    setState((prev) => {
-      try {
-        const result = applyAction(prev, action);
-        appendEvents(result.events, result.state);
-        void saveGame(result.state).catch(() => {});
-        void recordAction(result.state.id, action).catch(() => {});
-        return result.state;
-      } catch (e) {
-        if (e instanceof IllegalActionError) { console.warn('Illegal action:', e.message); return prev; }
-        throw e;
-      }
-    });
-  }, [appendEvents]);
-
-  const profileFor = useCallback(
-    (_id: string) => DIFFICULTY_PROFILE[difficultyRef.current],
-    [],
-  );
-
-  const npcProfileLabel = useCallback((id: string) => {
-    if (id === humanCode) return 'human';
-    return difficultyRef.current === 'easy' ? 'defensive'
-      : difficultyRef.current === 'hard' ? 'aggressive'
-      : 'balanced';
-  }, [humanCode]);
-
+  // ---- create or load the game (exactly once per provider, even under StrictMode) -----------------------
   useEffect(() => {
-    if (npcRunningRef.current) return;
-    const cur = currentPlayer(state);
-    if (state.phase === 'finished' || cur.isHuman) return;
-    npcRunningRef.current = true;
-    let cancelled = false;
+    if (initStarted.current) return;
+    initStarted.current = true;
     (async () => {
-      let s = state;
-      let guard = 0;
-      while (!cancelled && s.phase !== 'finished' && !currentPlayer(s).isHuman && guard++ < 20_000) {
-        const r = advanceNpcs(s, { profileFor });
-        appendEvents(r.events, r.state);
-        if (speedRef.current !== 'instant') {
-          await new Promise((res) => setTimeout(res, SPEED_MS[speedRef.current]));
+      try {
+        if (intent.kind === 'new') {
+          const seed = randomSeed();
+          const created = createGame({ id: crypto.randomUUID(), seed, allCountries: COUNTRIES, humanCode: intent.humanCode });
+          const setup: GameSetup = {
+            humanCode: intent.humanCode,
+            difficulty: intent.difficulty,
+            seed,
+            strategistId: pickStrategist(created.state, seed, llm !== null),
+          };
+          const rec = await store.createGame(setup, created.state, created.events);
+          if (!mounted.current) return;
+          recordRef.current = rec;
+          stateRef.current = created.state;
+          setRecord(rec);
+          setState(created.state);
+          reset(boardFromState(created.state));
+          enqueue(created.events);
+        } else {
+          const rec = await store.loadGame(intent.gameId);
+          if (!rec) throw new Error('That game could not be found.');
+          const batches = await store.loadBatches(intent.gameId);
+          if (!mounted.current) return;
+          recordRef.current = rec;
+          stateRef.current = rec.state;
+          setRecord(rec);
+          setState(rec.state);
+          reset(boardFromState(rec.state), batches.flatMap((b) => b.events));
         }
-        s = r.state;
-        setState(s);
-        if (r.events.length === 0) break;
+      } catch (e) {
+        if (mounted.current) setInitError(e instanceof Error ? e.message : 'The game could not be started.');
       }
-      npcRunningRef.current = false;
     })();
-    return () => { cancelled = true; npcRunningRef.current = false; };
-  }, [state.phase, state.currentPlayerIndex, state.round, appendEvents, profileFor]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
-  const isHumanTurn = currentPlayer(state).isHuman && state.phase !== 'finished';
-  const value = useMemo<GameContextValue>(
-    () => ({
-      state, log, dispatch, speed, setSpeed, isHumanTurn, lastBattle,
-      difficulty, setDifficulty, npcProfileLabel,
-      revealedSteps, setRevealedSteps,
-    }),
-    [state, log, dispatch, speed, isHumanTurn, lastBattle, difficulty,
-     npcProfileLabel, revealedSteps],
+  /** Saves first, then reveals: the result of a move is never shown before it is safely stored. */
+  const commit = useCallback(
+    async (next: GameState, events: GameEvent[]): Promise<void> => {
+      const rec = recordRef.current!;
+      setSaving(true);
+      try {
+        const updated = await store.commit(rec, next, events);
+        if (!mounted.current) return;
+        recordRef.current = updated;
+        stateRef.current = next;
+        setRecord(updated);
+        setState(next);
+        setSaveError(null);
+        enqueue(events);
+      } finally {
+        if (mounted.current) setSaving(false);
+      }
+    },
+    [store, enqueue],
   );
-  return <GameCtx.Provider value={value}>{children}</GameCtx.Provider>;
+
+  const difficulty: Difficulty = record?.difficulty ?? (intent.kind === 'new' ? intent.difficulty : 'medium');
+  const advisor = useMemo(() => (llm ? createLlmAdvisor(llm) : undefined), [llm]);
+
+  // ---- NPC driver: computes a whole run of NPC turns at once, saves it, then lets playback show it -------
+  useEffect(() => {
+    if (!state || !record || player.busy || saving || npcRunning.current || saveError) return;
+    if (state.phase === 'finished') return;
+    const me = currentPlayer(state);
+    if (me.isHuman && !me.eliminated) return;
+
+    npcRunning.current = true;
+    const cfg = DIFFICULTIES[record.difficulty];
+    (async () => {
+      try {
+        const run = await advanceNpcsAsync(state, {
+          profileFor: () => cfg.profile,
+          decide: makeDecider(record.difficulty),
+          advisor,
+          advisorFor: (id) => id === record.strategistId,
+          advisorTimeoutMs: 7000,
+          onThinking: (id) => mounted.current && setThinking(id),
+          shouldAbort: () => !mounted.current,
+        });
+        if (!mounted.current) return;
+        await commit(run.state, run.events);
+      } catch (e) {
+        if (e instanceof RunAbortedError || !mounted.current) return;
+        setSaveError(friendlySaveError(e));
+      } finally {
+        npcRunning.current = false;
+        if (mounted.current) setThinking(null);
+      }
+    })();
+  }, [state, record, player.busy, saving, saveError, advisor, commit]);
+
+  const dispatch = useCallback(
+    async (action: Action): Promise<string | null> => {
+      const s = stateRef.current;
+      if (!s || dispatching.current) return 'Please wait a moment.';
+      dispatching.current = true;
+      try {
+        const err = validateAction(s, action);
+        if (err) return err;
+        const r = applyAction(s, action);
+        try {
+          await commit(r.state, r.events);
+        } catch (e) {
+          return friendlySaveError(e);
+        }
+        return null;
+      } finally {
+        dispatching.current = false;
+      }
+    },
+    [commit],
+  );
+
+  // "Fast-forward to my turn" switches itself off when the human's turn arrives.
+  useEffect(() => {
+    if (!fastToMe || !state || player.busy || saving) return;
+    const me = currentPlayer(state);
+    if ((me.isHuman && !me.eliminated) || state.phase === 'finished') setFastToMe(false);
+  }, [fastToMe, state, player.busy, saving]);
+
+  // Do not let the tab close while a move is being written.
+  useEffect(() => {
+    if (!saving) return;
+    const handler = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = '';
+    };
+    window.addEventListener('beforeunload', handler);
+    return () => window.removeEventListener('beforeunload', handler);
+  }, [saving]);
+
+  const retry = useCallback(() => setSaveError(null), []);
+
+  const value = useMemo<GameContextValue | null>(() => {
+    if (!record || !state || !player.view) return null;
+    const human = state.players.find((p) => p.isHuman)!;
+    const colorByPlayer = new Map(state.players.map((p) => [p.id, colorFor(p.colorIndex)]));
+    const humanTurn = state.phase !== 'finished' && currentPlayer(state).isHuman && !currentPlayer(state).eliminated;
+    return {
+      record,
+      state,
+      view: player.view,
+      players: state.players,
+      humanId: human.id,
+      difficulty,
+      current: player.current,
+      log: player.log,
+      busy: player.busy,
+      saving,
+      saveError,
+      retry,
+      thinking,
+      canAct: humanTurn && !player.busy && !saving && !thinking,
+      speed,
+      setSpeed,
+      fastToMe,
+      setFastToMe,
+      dispatch,
+      nameOf: (code) => getCountry(code)?.name ?? state.territories[code]?.name ?? code,
+      colorOf: (id) => colorByPlayer.get(id) ?? '#8a7c66',
+      llm,
+      strategistId: record.strategistId,
+    };
+  }, [record, state, player.view, player.current, player.log, player.busy, saving, saveError, retry, thinking, speed, fastToMe, dispatch, difficulty, llm]);
+
+  if (initError) return <>{failed ? failed(initError) : <p role="alert">{initError}</p>}</>;
+  if (!value) return <>{loading}</>;
+  return <GameContext.Provider value={value}>{children}</GameContext.Provider>;
 }

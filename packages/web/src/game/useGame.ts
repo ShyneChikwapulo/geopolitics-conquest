@@ -1,10 +1,8 @@
 import { useContext } from 'react';
-import { GameCtx } from './GameProvider';
+import { GameContext, type GameContextValue } from './GameProvider';
 
-export type { LogEntry, BattleRoundSnapshot, Speed, Difficulty, GameContextValue } from './GameProvider';
-
-export function useGame() {
-  const ctx = useContext(GameCtx);
-  if (!ctx) throw new Error('useGame must be inside <GameProvider>');
+export function useGame(): GameContextValue {
+  const ctx = useContext(GameContext);
+  if (!ctx) throw new Error('useGame must be used inside <GameProvider>');
   return ctx;
 }
