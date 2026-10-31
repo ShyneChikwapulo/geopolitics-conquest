@@ -1,147 +1,110 @@
-import { useEffect, useState } from 'react';
-import type { GameState } from '@conquest/engine';
-import { GameProvider } from '../game/GameProvider';
-import { GameView } from '../GameView';
-import { loadAllGames } from '../game/localStore';
+import { getCountry } from '@conquest/data';
+import { DIFFICULTIES } from '@conquest/engine';
+import { useAuth } from '../auth/AuthProvider';
+import { colorFor } from '../game/colors';
+import { useBattleCommentary } from '../game/useBattleCommentary';
+import { useSpectator } from '../game/useSpectator';
+import { BattleLog } from './BattleLog';
+import { BoardStage } from './BoardStage';
+import { CommentaryPanel } from './CommentaryPanel';
+import { DecisionFeed } from './DecisionFeed';
+import { Logo } from './Logo';
+import { PlayerList } from './PlayerList';
+import { SpeedControls } from './SpeedControls';
 
-import { COUNTRIES } from '@conquest/data';
-import { MAP_FEATURES, MAP_HEIGHT, MAP_WIDTH, projectCentroid } from '../map/useMapProjection';
-import { PLAYER_COLORS } from '../map/WorldMap';
-import { SoldierBadge } from '../map/SoldierBadge';
+interface Props {
+  gameId: string;
+  /** Go to the app (sign in / menu). */
+  onLeave: () => void;
+  onReplay: (id: string) => void;
+}
 
-export function Watch({ gameId, onClose }: { gameId: string; onClose: () => void }) {
-  const [state, setState] = useState<GameState | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [source, setSource] = useState<'firestore' | 'local' | null>(null);
+/** Read-only, real-time view of someone's game. Anyone with the link can open it; nobody can play from here. */
+export function Watch({ gameId, onLeave, onReplay }: Props) {
+  const s = useSpectator(gameId);
+  const { status } = useAuth();
+  const record = s.record;
 
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      // Prefer Firestore if configured.
-      const projectId = import.meta.env.VITE_FIREBASE_PROJECT_ID;
-      if (projectId) {
-        try {
-          const { initFirebase } = await import('../game/firebaseClient');
-          const { watchGame } = await initFirebase();
-          const unsub = watchGame(gameId, (s) => {
-            if (cancelled) return;
-            setState(s);
-            setSource('firestore');
-          });
-          return () => unsub();
-        } catch (e: any) {
-          if (!cancelled) setError(e?.message ?? 'Firestore error');
-        }
-      }
-      // Fallback: local games with this id.
-      const local = loadAllGames().find((g) => g.id === gameId) ?? null;
-      if (!cancelled) {
-        if (local) { setState(local); setSource('local'); }
-        else setError('Game not found.');
-      }
-    })();
-    return () => { cancelled = true; };
-  }, [gameId]);
+  const nameOf = (code: string): string => getCountry(code)?.name ?? code;
+  const colors = new Map((record?.initial.players ?? []).map((p) => [p.id, colorFor(p.colorIndex)]));
+  const colorOf = (id: string): string => colors.get(id) ?? '#8a7c66';
+  const commentary = useBattleCommentary(s.current, {
+    llm: null, // spectators never spend the owner's AI quota: they get the factual match report
+    speed: s.speed,
+    nameOf,
+    ownerOf: (code) => s.view?.territories[code]?.ownerId ?? code,
+  });
 
-  if (error) {
+  if (s.error && !record) {
     return (
-      <div className="battle-overlay">
-        <div className="battle-card">
-          <h3>Watch</h3>
-          <p className="muted">{error}</p>
-          <button className="primary" onClick={onClose}>Back</button>
+      <div className="auth-screen">
+        <div className="auth-card">
+          <div className="auth-logo"><Logo size={48} /><h1>Game not found</h1></div>
+          <p className="form-error" role="alert">{s.error}</p>
+          <button onClick={onLeave}>Go to Geopolitics Conquest</button>
         </div>
       </div>
     );
   }
-
-  if (!state) {
+  if (!record || !s.view) {
     return (
-      <div className="battle-overlay">
-        <div className="battle-card">
-          <h3>Loading game…</h3>
-        </div>
+      <div className="auth-screen" role="status">
+        <div className="auth-card"><div className="auth-logo"><Logo size={48} /><h1><span className="spinner" /> Tuning in…</h1></div></div>
       </div>
     );
   }
 
-  // We reuse GameProvider with a fake humanCode and lock the dispatch. The map and player
-  // list render read-only; the action panel still shows but any dispatch is blocked because
-  // we never pass a humanCode that matches a player.
-  const firstPlayer = state.players[0]!.id;
+  const humanId = record.initial.players.find((p) => p.isHuman)!.id;
+  const finished = record.status === 'finished' && !s.busy;
+  const winner = s.view.winnerId;
 
   return (
-    <div className="game-view">
+    <div className="game-view with-banner">
       <header className="game-header">
-        <h1>👁 Watching a game {source ? `(${source})` : ''}</h1>
-        <span className="game-meta">Round {state.round}</span>
-        <button onClick={onClose}>Leave</button>
+        <div className="game-header-brand">
+          <Logo size={30} />
+          <h1>Geopolitics Conquest</h1>
+        </div>
+        <span className="chip">Round <strong>{s.view.round}</strong></span>
+        <span className="chip">{nameOf(humanId)} · {DIFFICULTIES[record.difficulty].label}</span>
+        <span className="header-spacer" />
+        <SpeedControls speed={s.speed} setSpeed={s.setSpeed} fastToMe={false} setFastToMe={() => {}} showFastForward={false} />
+        <div className="header-actions">
+          <button onClick={() => onReplay(gameId)}>⟲ <span className="txt">Replay from start</span></button>
+          <button className="primary" onClick={onLeave}>{status === 'signedIn' ? 'Menu' : 'Play your own game'}</button>
+        </div>
       </header>
-      <main className="game-main">
-        <section className="game-map">
-          <WatchMap game={state} />
+      <div className="watch-banner" role="status">
+        {record.status === 'active' ? (
+          <><span className="live-dot" /> <strong>LIVE</strong> You are watching {nameOf(humanId)}'s game. You cannot play from here, but the board updates as it happens.</>
+        ) : (
+          <>This game is finished. {winner ? `${nameOf(winner)} conquered the world.` : ''}</>
+        )}
+      </div>
+      <div className="game-main">
+        <section className="game-stage" aria-label="Game board">
+          <BoardStage players={record.initial.players} view={s.view} current={s.current} nameOf={nameOf} colorOf={colorOf} humanId={humanId} speed={s.speed} commentary={commentary}>
+            {finished && winner && (
+              <div className="end-banner victory" role="dialog" aria-label="Game over">
+                <div className="end-card">
+                  <h2>{nameOf(winner)} conquered the world</h2>
+                  <p>{winner === humanId ? 'The human player won this one.' : 'The rivals won this one.'}</p>
+                  <div className="end-actions">
+                    <button className="gold" onClick={() => onReplay(gameId)}>Watch the replay</button>
+                    <button onClick={onLeave}>{status === 'signedIn' ? 'Menu' : 'Play your own game'}</button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </BoardStage>
         </section>
-        <aside className="game-sidebar">
-          <WatchLog game={state} />
+        <aside className="game-side" aria-label="Game information">
+          <PlayerList players={record.initial.players} view={s.view} colorOf={colorOf} nameOf={nameOf} humanId={humanId} strategistId={record.strategistId} />
+          <CommentaryPanel items={commentary} aiEnabled={false} />
+          <DecisionFeed log={s.log} nameOf={nameOf} colorOf={colorOf} round={s.view.round} />
+          <BattleLog log={s.log} nameOf={nameOf} />
         </aside>
-      </main>
-    </div>
-  );
-}
-
-// Simple read-only map: reuse the same colour palette and country shapes.
-function WatchMap({ game }: { game: GameState }) {
-  const { COUNTRIES } = require('@conquest/data') as typeof import('@conquest/data');
-  const { MAP_FEATURES, MAP_HEIGHT, MAP_WIDTH, projectCentroid } = require('../map/useMapProjection') as typeof import('../map/useMapProjection');
-  const { PLAYER_COLORS } = require('../map/WorldMap') as typeof import('../map/WorldMap');
-  const { SoldierBadge } = require('../map/SoldierBadge') as typeof import('../map/SoldierBadge');
-  const numericToCountry = new Map(COUNTRIES.map((c) => [c.numeric, c]));
-
-  return (
-    <svg viewBox={`0 0 ${MAP_WIDTH} ${MAP_HEIGHT}`} className="world-map" preserveAspectRatio="xMidYMid slice">
-      <rect width={MAP_WIDTH} height={MAP_HEIGHT} fill="#2a2318" />
-      <image href="/paper.jpg" x={0} y={0} width={MAP_WIDTH} height={MAP_HEIGHT} preserveAspectRatio="xMidYMid slice" />
-      {MAP_FEATURES.map((f) => {
-        const country = numericToCountry.get(f.id);
-        if (!f.d || !country) return null;
-        const territory = game.territories[country.code];
-        const player = game.players.find((p) => p.id === territory?.ownerId);
-        const fill = player ? PLAYER_COLORS[player.colorIndex] : '#5c5140';
-        return (
-          <path key={country.code} d={f.d} fill={fill} stroke="#3a2f1f" strokeWidth={0.4}
-            className={`country-shape ${territory ? 'in-play' : 'not-in-play'}`} />
-        );
-      })}
-      {COUNTRIES.map((c) => {
-        const t = game.territories[c.code];
-        if (!t) return null;
-        const [x, y] = projectCentroid(c.lng, c.lat);
-        const player = game.players.find((p) => p.id === t.ownerId);
-        return <SoldierBadge key={c.code} x={x} y={y} soldiers={t.soldiers}
-          color={player ? PLAYER_COLORS[player.colorIndex] : '#8a7c66'} />;
-      })}
-    </svg>
-  );
-}
-
-function WatchLog({ game }: { game: GameState }) {
-  return (
-    <div className="player-list">
-      <h3>Players</h3>
-      <ul>
-        {game.players.map((p) => {
-          const owned = Object.values(game.territories).filter((t) => t.ownerId === p.id);
-          return (
-            <li key={p.id} className={p.eliminated ? 'eliminated' : ''}>
-              <span className="name">{p.name}</span>
-              <span className="stats">{owned.length} · {owned.reduce((a, t) => a + t.soldiers, 0)} s</span>
-            </li>
-          );
-        })}
-      </ul>
-      <p className="muted" style={{ marginTop: 12, fontSize: 12 }}>
-        Round {game.round} · last updated v{game.version}
-      </p>
+      </div>
     </div>
   );
 }

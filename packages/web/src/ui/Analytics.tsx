@@ -1,135 +1,106 @@
 import { useEffect, useState } from 'react';
-import { loadAllGames } from '../game/localStore';
-import type { GameState } from '@conquest/engine';
+import { getCountry } from '@conquest/data';
+import { DIFFICULTIES } from '@conquest/engine';
+import { LEVELS, num1, pct, personalStats, platformStats } from '../game/analytics';
+import type { GameStore } from '../game/store/GameStore';
+import type { GameRow } from '../game/types';
 
-interface PlayerStat {
-  name: string;
-  games: number;
-  wins: number;
-  countriesHeldAtEnd: number;
-  soldiersHeldAtEnd: number;
-}
-
-interface CountryStat {
-  name: string;
-  gamesAsHome: number;
-  winsAsHome: number;
-}
-
-export function Analytics() {
-  const [stats, setStats] = useState<{
-    games: number;
-    avgRounds: number;
-    perPlayer: PlayerStat[];
-    perCountry: CountryStat[];
-    seatWins: number[];
-  } | null>(null);
+export function Analytics({ store, onBack }: { store: GameStore | null; onBack: () => void }) {
+  const [mine, setMine] = useState<GameRow[] | null>(null);
+  const [all, setAll] = useState<GameRow[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const games = loadAllGames() as GameState[];
-    const perPlayer = new Map<string, PlayerStat>();
-    const perCountry = new Map<string, CountryStat>();
-    const seatWins = new Array(10).fill(0) as number[];
-    let totalRounds = 0;
+    if (!store) return;
+    store.listMine().then(setMine).catch(() => setError('Your games could not be loaded.'));
+    store.listFinished(300).then(setAll).catch(() => setAll([]));
+  }, [store]);
 
-    for (const g of games) {
-      totalRounds += g.round;
-      const winner = g.players.find((p) => p.id === g.winnerId);
-      if (winner) seatWins[g.players.indexOf(winner)]!++;
-
-      for (const p of g.players) {
-        const cur = perPlayer.get(p.name) ?? {
-          name: p.name, games: 0, wins: 0, countriesHeldAtEnd: 0, soldiersHeldAtEnd: 0,
-        };
-        cur.games++;
-        if (p.id === g.winnerId) cur.wins++;
-        const owned = Object.values(g.territories).filter((t) => t.ownerId === p.id);
-        cur.countriesHeldAtEnd += owned.length;
-        cur.soldiersHeldAtEnd += owned.reduce((a, t) => a + t.soldiers, 0);
-        perPlayer.set(p.name, cur);
-
-        const homeCode = p.homeCountry;
-        const homeName = g.territories[homeCode]?.name ?? homeCode;
-        const c = perCountry.get(homeName) ?? { name: homeName, gamesAsHome: 0, winsAsHome: 0 };
-        c.gamesAsHome++;
-        if (p.id === g.winnerId) c.winsAsHome++;
-        perCountry.set(homeName, c);
-      }
-    }
-
-    setStats({
-      games: games.length,
-      avgRounds: games.length ? Math.round(totalRounds / games.length) : 0,
-      perPlayer: [...perPlayer.values()].sort((a, b) => b.wins - a.wins || b.games - a.games).slice(0, 10),
-      perCountry: [...perCountry.values()]
-        .sort((a, b) => b.winsAsHome - a.winsAsHome || b.gamesAsHome - a.gamesAsHome)
-        .slice(0, 10),
-      seatWins,
-    });
-  }, []);
-
-  if (!stats || stats.games === 0) {
-    return (
-      <div className="analytics">
-        <h3>Analytics</h3>
-        <p className="muted">Play a game to see your stats.</p>
-      </div>
-    );
-  }
-
-  const maxSeat = Math.max(...stats.seatWins, 1);
+  const me = mine ? personalStats(mine) : null;
+  const plat = all ? platformStats(all) : null;
+  const maxSeat = plat ? Math.max(1, ...plat.winsBySeat) : 1;
 
   return (
-    <div className="analytics">
-      <h3>Analytics</h3>
-      <p>
-        <strong>{stats.games}</strong> {stats.games === 1 ? 'game' : 'games'} played · avg <strong>{stats.avgRounds}</strong> rounds
-      </p>
+    <div className="page">
+      <div className="page-inner">
+        <div className="page-top start">
+          <button onClick={onBack}>← Back</button>
+          <h1 style={{ fontSize: 24 }}>Analytics</h1>
+        </div>
+        {error && <p className="form-error" role="alert">{error}</p>}
 
-      <h4>Win rate by seat</h4>
-      <div className="seat-bars">
-        {stats.seatWins.map((w, i) => (
-          <div key={i} className="seat-bar" title={`Seat ${i + 1}: ${w} wins`}>
-            <div className="seat-bar-fill" style={{ height: `${(w / maxSeat) * 100}%` }} />
-            <span className="seat-bar-label">{i + 1}</span>
-          </div>
-        ))}
+        <section className="card" aria-label="Your statistics">
+          <h2>You</h2>
+          {!me && <p className="empty"><span className="spinner" /> Loading…</p>}
+          {me && me.games === 0 && <p className="empty">Play a game and your statistics will appear here.</p>}
+          {me && me.games > 0 && (
+            <>
+              <div className="kpis">
+                <div className="kpi"><strong>{me.games}</strong><span>games ({me.active} in progress)</span></div>
+                <div className="kpi"><strong>{pct(me.winRate)}</strong><span>win rate ({me.wins}/{me.finished})</span></div>
+                <div className="kpi"><strong>{num1(me.avgRounds)}</strong><span>avg rounds</span></div>
+                <div className="kpi"><strong>{me.fastestWin ?? '–'}</strong><span>fastest win (rounds)</span></div>
+                <div className="kpi"><strong>{me.conquests}</strong><span>conquests in your games</span></div>
+                <div className="kpi"><strong>{me.battles}</strong><span>battle rounds in your games</span></div>
+              </div>
+              <table className="table">
+                <thead><tr><th>Rivals</th><th>Finished</th><th>Won</th><th>Win rate</th></tr></thead>
+                <tbody>
+                  {LEVELS.map((d) => (
+                    <tr key={d}>
+                      <td>{DIFFICULTIES[d].label}</td>
+                      <td>{me.byDifficulty[d].games}</td>
+                      <td>{me.byDifficulty[d].wins}</td>
+                      <td>{pct(me.byDifficulty[d].games ? me.byDifficulty[d].wins / me.byDifficulty[d].games : null)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              {me.favourite && <p className="muted" style={{ margin: 0 }}>Your most-played country: <strong style={{ color: 'var(--text)' }}>{getCountry(me.favourite.code)?.name}</strong> ({me.favourite.games} games)</p>}
+            </>
+          )}
+        </section>
+
+        <section className="card" aria-label="Platform statistics">
+          <h2>Everyone <small>the most recent finished games across the whole platform</small></h2>
+          {!plat && <p className="empty"><span className="spinner" /> Loading…</p>}
+          {plat && plat.games === 0 && <p className="empty">No finished games on the platform yet.</p>}
+          {plat && plat.games > 0 && (
+            <>
+              <div className="kpis">
+                <div className="kpi"><strong>{plat.games}</strong><span>finished games</span></div>
+                <div className="kpi"><strong>{pct(plat.humanWinRate)}</strong><span>won by the human</span></div>
+                <div className="kpi"><strong>{pct(plat.humanEliminatedRate)}</strong><span>human eliminated</span></div>
+                <div className="kpi"><strong>{num1(plat.avgRounds)}</strong><span>avg rounds</span></div>
+                <div className="kpi"><strong>{plat.battles}</strong><span>battle rounds</span></div>
+              </div>
+              <table className="table">
+                <thead><tr><th>Rivals</th><th>Games</th><th>Human wins</th><th>Human win rate</th></tr></thead>
+                <tbody>
+                  {LEVELS.map((d) => (
+                    <tr key={d}>
+                      <td>{DIFFICULTIES[d].label}</td>
+                      <td>{plat.byDifficulty[d].games}</td>
+                      <td>{plat.byDifficulty[d].wins}</td>
+                      <td>{pct(plat.byDifficulty[d].games ? plat.byDifficulty[d].wins / plat.byDifficulty[d].games : null)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              <h2 style={{ fontSize: 13 }}>Who wins, by turn-order seat <small>(seat 1 went first)</small></h2>
+              <div className="bars" role="img" aria-label="Wins by turn-order seat">
+                {plat.winsBySeat.map((n, i) => (
+                  <div className="bar-col" key={i}>
+                    <b>{n}</b>
+                    <i style={{ height: `${(n / maxSeat) * 100}%` }} />
+                    <span>{i + 1}</span>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
+        </section>
       </div>
-
-      <h4>Players</h4>
-      <table className="analytics-table">
-        <thead>
-          <tr><th>Player</th><th>Games</th><th>Wins</th><th>Avg countries</th><th>Avg soldiers</th></tr>
-        </thead>
-        <tbody>
-          {stats.perPlayer.map((p) => (
-            <tr key={p.name}>
-              <td>{p.name}</td>
-              <td>{p.games}</td>
-              <td>{p.wins}</td>
-              <td>{(p.countriesHeldAtEnd / p.games).toFixed(1)}</td>
-              <td>{(p.soldiersHeldAtEnd / p.games).toFixed(1)}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-
-      <h4>Countries (as home)</h4>
-      <table className="analytics-table">
-        <thead>
-          <tr><th>Country</th><th>Games</th><th>Wins</th><th>Win rate</th></tr>
-        </thead>
-        <tbody>
-          {stats.perCountry.map((c) => (
-            <tr key={c.name}>
-              <td>{c.name}</td>
-              <td>{c.gamesAsHome}</td>
-              <td>{c.winsAsHome}</td>
-              <td>{c.gamesAsHome > 0 ? Math.round((100 * c.winsAsHome) / c.gamesAsHome) : 0}%</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
     </div>
   );
 }

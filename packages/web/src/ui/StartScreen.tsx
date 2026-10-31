@@ -1,75 +1,135 @@
-import { useState } from 'react';
-import type { CountryRecord } from '@conquest/data';
-import { soldiersForPopulation } from '@conquest/engine';
-import { History } from './History';
-import { Analytics } from './Analytics';
-import { Logo } from './Logo';
+import { useEffect, useMemo, useState } from 'react';
+import { COUNTRIES, getCountry } from '@conquest/data';
+import { DIFFICULTIES, soldiersForPopulation, type Difficulty } from '@conquest/engine';
+import { useAuth } from '../auth/AuthProvider';
+import type { GameStore } from '../game/store/GameStore';
+import type { GameRow } from '../game/types';
+import { Flag } from './Flag';
 import { HowToPlay } from './HowToPlay';
-import type { Difficulty } from '../game/GameProvider';
+import { Logo } from './Logo';
 
-export function StartScreen({ countries, onStart, onReplay }: {
-  countries: readonly CountryRecord[];
-  onStart: (human: string, seed: number, difficulty: Difficulty) => void;
-  onReplay: (id: string) => void;
-}) {
-  const [code, setCode] = useState(countries[0]!.code);
-  const [seed, setSeed] = useState(() => Math.floor(Math.random() * 1e6));
+interface Props {
+  store: GameStore | null;
+  onStart: (humanCode: string, difficulty: Difficulty) => void;
+  onResume: (gameId: string) => void;
+  onHistory: () => void;
+  onAnalytics: () => void;
+}
+
+const LEVELS: Difficulty[] = ['easy', 'medium', 'hard'];
+
+export function StartScreen({ store, onStart, onResume, onHistory, onAnalytics }: Props) {
+  const { user, signOut, config } = useAuth();
+  const [query, setQuery] = useState('');
+  const [selected, setSelected] = useState('ZAF');
   const [difficulty, setDifficulty] = useState<Difficulty>('medium');
-  const [helpOpen, setHelpOpen] = useState(false);
-  const sorted = [...countries].sort((a, b) => a.rank - b.rank);
-  const soldiers = soldiersForPopulation(countries.find((c) => c.code === code)!.population);
+  const [rules, setRules] = useState(false);
+  const [active, setActive] = useState<GameRow[] | null>(null);
+  const [listError, setListError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!store) return;
+    let cancelled = false;
+    store
+      .listMine()
+      .then((rows) => !cancelled && setActive(rows.filter((r) => r.status === 'active').slice(0, 5)))
+      .catch(() => !cancelled && setListError('Your saved games could not be loaded.'));
+    return () => {
+      cancelled = true;
+    };
+  }, [store]);
+
+  const matches = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    return COUNTRIES.filter((c) => !q || c.name.toLowerCase().includes(q)).slice(0, 60);
+  }, [query]);
+  const chosen = getCountry(selected)!;
+  const soldiers = soldiersForPopulation(chosen.population);
 
   return (
-    <div className="start-screen">
-      <div className="start-hero">
-        <Logo size={64} variant="gold" />
-        <h1>Geopolitics Conquest</h1>
-        <p>Pick your country. Conquer the other 9. Win the world.</p>
-      </div>
-
-      <div className="start-form">
-        <label>
-          Your country
-          <select value={code} onChange={(e) => setCode(e.target.value)}>
-            {sorted.map((c) => (
-              <option key={c.code} value={c.code}>
-                #{c.rank} {c.name} ({soldiersForPopulation(c.population)} soldiers)
-              </option>
-            ))}
-          </select>
-        </label>
-
-        <label>
-          Difficulty
-          <div className="difficulty-row">
-            {(['easy', 'medium', 'hard'] as const).map((d) => (
-              <button
-                key={d}
-                type="button"
-                className={difficulty === d ? 'primary' : ''}
-                onClick={() => setDifficulty(d)}
-              >
-                {d === 'easy' ? 'Easy' : d === 'medium' ? 'Medium' : 'Hard'}
-              </button>
-            ))}
+    <div className="page">
+      <div className="page-inner">
+        <div className="page-top">
+          <div className="hero">
+            <Logo size={52} />
+            <div>
+              <h1>Geopolitics Conquest</h1>
+              <p>Pick a country. Nine random rivals take the rest. Conquer the world.</p>
+            </div>
           </div>
-        </label>
+          <div className="page-actions">
+            <button onClick={() => setRules(true)}>? Rules</button>
+            <button onClick={onAnalytics}>📊 Analytics</button>
+            <button onClick={onHistory}>🗂 My games</button>
+            <span className="chip" title={user?.email ?? ''}>{user?.isGuest ? 'dev guest' : user?.email}</span>
+            <button className="ghost" onClick={() => void signOut()}>Sign out</button>
+          </div>
+        </div>
 
-        <label>
-          Seed
-          <input type="number" value={seed} onChange={(e) => setSeed(Number(e.target.value))} />
-        </label>
+        <div className="cols">
+          <section className="card" aria-label="New game">
+            <h2>1 · Choose your country <small>{COUNTRIES.length} to pick from · number = starting soldiers</small></h2>
+            <input className="picker-search" placeholder="Search countries…" value={query} onChange={(e) => setQuery(e.target.value)} aria-label="Search countries" />
+            <div className="picker-list" role="listbox" aria-label="Countries">
+              {matches.map((c) => (
+                <button key={c.code} role="option" aria-selected={c.code === selected} className="picker-item" onClick={() => setSelected(c.code)}>
+                  <Flag iso2={c.iso2} size={14} />
+                  <span className="nm">{c.name}</span>
+                  <span className="sol">{soldiersForPopulation(c.population)}</span>
+                </button>
+              ))}
+              {matches.length === 0 && <p className="empty">No country matches “{query}”.</p>}
+            </div>
+            <div className="picked">
+              <Flag iso2={chosen.iso2} size={28} />
+              <div>
+                <div className="nm">{chosen.name}</div>
+                <div className="muted" style={{ fontSize: 12.5 }}>
+                  {chosen.population.toLocaleString()} people → starts with <strong style={{ color: 'var(--text)' }}>{soldiers}</strong> {soldiers === 1 ? 'soldier' : 'soldiers'}
+                </div>
+              </div>
+            </div>
 
-        <button className="primary" onClick={() => onStart(code, seed, difficulty)}>
-          Start with {soldiers} soldiers
-        </button>
+            <h2>2 · Choose the rivals <small>how the nine computer players behave</small></h2>
+            <div className="diff-grid">
+              {LEVELS.map((d) => (
+                <button key={d} className="diff-card" aria-pressed={difficulty === d} onClick={() => setDifficulty(d)}>
+                  <strong>{DIFFICULTIES[d].label}</strong>
+                  <span>{DIFFICULTIES[d].blurb}</span>
+                </button>
+              ))}
+            </div>
+            <button className="gold" style={{ padding: '12px 18px', fontSize: 16 }} disabled={!store} onClick={() => onStart(selected, difficulty)}>
+              {store ? `Start as ${chosen.name}` : 'Connecting…'}
+            </button>
+            {config.llm && <p className="muted" style={{ margin: 0, fontSize: 12 }}>🧠 AI commentary is on, and one rival per game has its attack choices made by an AI advisor.</p>}
+          </section>
 
-        <button type="button" onClick={() => setHelpOpen(true)}>How to play</button>
+          <section className="card" aria-label="Continue a game">
+            <h2>Continue a game</h2>
+            {listError && <p className="form-error">{listError}</p>}
+            {active === null && !listError && <p className="empty"><span className="spinner" /> Loading your games…</p>}
+            {active?.length === 0 && <p className="empty">No games in progress. Pick a country and start one.</p>}
+            <div className="game-rows">
+              {active?.map((r) => (
+                <div className="game-row" key={r.id}>
+                  <Flag iso2={getCountry(r.humanCode)?.iso2 ?? 'un'} size={18} />
+                  <div className="main">
+                    <strong>{getCountry(r.humanCode)?.name ?? r.humanCode}</strong>
+                    <span>
+                      Round {r.round} · {DIFFICULTIES[r.difficulty].label} · {new Date(r.updatedAt).toLocaleString()}
+                    </span>
+                  </div>
+                  <div className="acts">
+                    <button className="primary" onClick={() => onResume(r.id)}>Resume</button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
+        </div>
       </div>
-
-      <History onReplay={onReplay} />
-      <Analytics />
-      {helpOpen && <HowToPlay onClose={() => setHelpOpen(false)} />}
+      {rules && <HowToPlay onClose={() => setRules(false)} />}
     </div>
   );
 }

@@ -1,40 +1,64 @@
-import { useState } from 'react';
+import { useState, type FormEvent } from 'react';
+import { useAuth } from '../auth/AuthProvider';
+import { validateCredentials } from '../auth/errors';
 import { Logo } from './Logo';
 
-interface AuthScreenProps {
-  onAuthed: () => void;
-}
+type Mode = 'signIn' | 'signUp' | 'reset';
 
-type Mode = 'login' | 'signup';
-
-export function AuthScreen({ onAuthed }: AuthScreenProps) {
-  const [mode, setMode] = useState<Mode>('login');
+export function AuthScreen() {
+  const auth = useAuth();
+  const [mode, setMode] = useState<Mode>('signIn');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const [info, setInfo] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
-  const firebaseConfigured = Boolean(import.meta.env.VITE_FIREBASE_PROJECT_ID);
+  if (auth.status === 'loading') {
+    return (
+      <div className="auth-screen" role="status">
+        <div className="auth-card">
+          <div className="auth-logo"><Logo size={48} /><h1><span className="spinner" /> Connecting…</h1></div>
+        </div>
+      </div>
+    );
+  }
 
-  const submit = async (e: React.FormEvent) => {
+  if (auth.status === 'unavailable') {
+    return (
+      <div className="auth-screen">
+        <div className="auth-card">
+          <div className="auth-logo"><Logo size={48} /><h1>Sign-in is unavailable</h1></div>
+          <p className="form-error" role="alert">{auth.unavailableReason}</p>
+          <p className="muted" style={{ margin: 0, fontSize: 13 }}>
+            You can still watch any game from its shared link. Playing needs an account.
+          </p>
+          <button onClick={() => location.reload()}>Try again</button>
+        </div>
+      </div>
+    );
+  }
+
+  const submit = async (e: FormEvent): Promise<void> => {
     e.preventDefault();
-    setError('');
+    setError(null);
+    setInfo(null);
+    if (mode === 'reset') {
+      if (!/^\S+@\S+\.\S+$/.test(email.trim())) return setError('Enter the email address of your account.');
+    } else {
+      const problem = validateCredentials(email, password, mode);
+      if (problem) return setError(problem);
+    }
     setBusy(true);
     try {
-      if (!firebaseConfigured) {
-        // Local fallback: hardcoded creds from .env.local
-        const USER = import.meta.env.VITE_APP_USER ?? 'student';
-        const PASS = import.meta.env.VITE_APP_PASS ?? 'inf4001n';
-        if (email === USER && password === PASS) { onAuthed(); return; }
-        throw new Error('Incorrect username or password (local mode).');
+      if (mode === 'signIn') await auth.signIn(email, password);
+      else if (mode === 'signUp') await auth.signUp(email, password);
+      else {
+        await auth.resetPassword(email);
+        setInfo('If an account exists for that email, a reset link is on its way.');
       }
-      const { initFirebaseAuth } = await import('../game/firebaseClient');
-      const auth = await initFirebaseAuth();
-      if (mode === 'signup') await auth.signUp(email, password);
-      else await auth.signIn(email, password);
-      onAuthed();
-    } catch (err: any) {
-      setError(humanizeFirebaseError(err));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Something went wrong.');
     } finally {
       setBusy(false);
     }
@@ -42,73 +66,52 @@ export function AuthScreen({ onAuthed }: AuthScreenProps) {
 
   return (
     <div className="auth-screen">
-      <div className="auth-card">
+      <form className="auth-card" onSubmit={(e) => void submit(e)} noValidate>
         <div className="auth-logo">
-          <Logo size={56} variant="gold" />
+          <Logo size={52} />
           <h1>Geopolitics Conquest</h1>
+          <span className="muted" style={{ fontSize: 13 }}>Sign in to play. Anyone can watch a shared game without an account.</span>
         </div>
-        <div className="auth-tabs">
-          <button
-            type="button"
-            className={mode === 'login' ? 'primary' : ''}
-            onClick={() => { setMode('login'); setError(''); }}
-          >
-            Log in
-          </button>
-          <button
-            type="button"
-            className={mode === 'signup' ? 'primary' : ''}
-            onClick={() => { setMode('signup'); setError(''); }}
-          >
-            Sign up
-          </button>
-        </div>
-        <form onSubmit={submit} className="auth-form">
+
+        {mode !== 'reset' && (
+          <div className="auth-tabs" role="group" aria-label="Sign in or create an account">
+            <button type="button" aria-pressed={mode === 'signIn'} onClick={() => { setMode('signIn'); setError(null); }}>Sign in</button>
+            <button type="button" aria-pressed={mode === 'signUp'} onClick={() => { setMode('signUp'); setError(null); }}>Create account</button>
+          </div>
+        )}
+
+        <div className="auth-form">
           <label>
             Email
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => { setEmail(e.target.value); setError(''); }}
-              autoComplete="email"
-              required
-              autoFocus
-            />
+            <input type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} autoFocus required />
           </label>
-          <label>
-            Password {mode === 'signup' && <span className="muted">(at least 6 characters)</span>}
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => { setPassword(e.target.value); setError(''); }}
-              autoComplete={mode === 'signup' ? 'new-password' : 'current-password'}
-              required
-              minLength={mode === 'signup' ? 6 : undefined}
-            />
-          </label>
-          {error && <p className="login-error">{error}</p>}
-          <button type="submit" className="primary" disabled={busy}>
-            {busy ? 'Working…' : mode === 'signup' ? 'Create account' : 'Log in'}
+          {mode !== 'reset' && (
+            <label>
+              Password
+              <input type="password" autoComplete={mode === 'signUp' ? 'new-password' : 'current-password'} value={password} onChange={(e) => setPassword(e.target.value)} required minLength={mode === 'signUp' ? 6 : undefined} />
+            </label>
+          )}
+          {error && <p className="form-error" role="alert">{error}</p>}
+          {info && <p className="form-ok" role="status">{info}</p>}
+          <button className="gold" type="submit" disabled={busy}>
+            {busy ? 'Please wait…' : mode === 'signIn' ? 'Sign in' : mode === 'signUp' ? 'Create account' : 'Send reset link'}
           </button>
-        </form>
-        {!firebaseConfigured && (
-          <p className="login-hint muted">
-            Local mode — default login <code>student</code> / <code>inf4001n</code>
-          </p>
+          {mode === 'signIn' && (
+            <button type="button" className="ghost" onClick={() => { setMode('reset'); setError(null); }}>Forgot your password?</button>
+          )}
+          {mode === 'reset' && (
+            <button type="button" className="ghost" onClick={() => { setMode('signIn'); setError(null); setInfo(null); }}>← Back to sign in</button>
+          )}
+        </div>
+
+        {auth.config.devGuest && (
+          <div className="dev-note">
+            <strong>Development mode.</strong> Firebase is not configured, so accounts are unavailable.{' '}
+            <button type="button" onClick={auth.continueAsGuest}>Continue as a local guest</button>
+            <div style={{ marginTop: 4 }}>Games are saved in this browser only.</div>
+          </div>
         )}
-      </div>
+      </form>
     </div>
   );
-}
-
-function humanizeFirebaseError(err: any): string {
-  const code = err?.code ?? '';
-  if (code.includes('email-already-in-use')) return 'That email is already registered. Try logging in.';
-  if (code.includes('invalid-email')) return 'Please enter a valid email address.';
-  if (code.includes('weak-password')) return 'Password must be at least 6 characters.';
-  if (code.includes('user-not-found')) return 'No account with that email. Try signing up.';
-  if (code.includes('wrong-password')) return 'Incorrect password.';
-  if (code.includes('invalid-credential')) return 'Incorrect email or password.';
-  if (code.includes('too-many-requests')) return 'Too many attempts. Try again in a minute.';
-  return err?.message ?? 'Something went wrong. Try again.';
 }
