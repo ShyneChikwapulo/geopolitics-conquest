@@ -1,0 +1,181 @@
+/* ---------- scene ---------- */
+.dice-cube-scene {
+  width: 60px;
+  height: 60px;
+  perspective: 400px;
+  position: relative;
+  display: grid;
+  place-items: center;
+}
+
+.dice-cube {
+  width: 40px;
+  height: 40px;
+  position: relative;
+  transform-style: preserve-3d;
+  will-change: transform;
+}
+
+.dice-shadow {
+  position: absolute;
+  bottom: -10px;
+  width: 34px;
+  height: 8px;
+  border-radius: 50%;
+  background: radial-gradient(ellipse at center, rgba(0, 0, 0, 0.55) 0%, rgba(0, 0, 0, 0) 70%);
+  transition: opacity 0.25s ease;
+}
+.dice-cube-scene.rolling .dice-shadow { opacity: 0.35; }
+
+/* ---------- six faces ---------- */
+.dice-face {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(145deg, #ffffff 0%, #e2e8f0 100%);
+  border-radius: 8px;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.06), inset 0 -3px 6px rgba(0, 0, 0, 0.12);
+  display: grid;
+  place-items: center;
+  backface-visibility: hidden;
+}
+.dice-face.front  { transform: translateZ(20px); }
+.dice-face.back   { transform: rotateY(180deg) translateZ(20px); }
+.dice-face.right  { transform: rotateY(90deg)  translateZ(20px); }
+.dice-face.left   { transform: rotateY(-90deg) translateZ(20px); }
+.dice-face.top    { transform: rotateX(90deg)  translateZ(20px); }
+.dice-face.bottom { transform: rotateX(-90deg) translateZ(20px); }
+
+/* ---------- pips ---------- */
+.pips {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  grid-template-rows: repeat(3, 1fr);
+  width: 28px;
+  height: 28px;
+  gap: 2px;
+}
+.pip {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  align-self: center;
+  justify-self: center;
+}
+
+/* ---------- bottom drawer (respects sidebar) ---------- */
+.battle-drawer {
+  position: fixed;
+  left: 0;
+  right: 380px; /* stop at the sidebar's left edge */
+  bottom: 0;
+  z-index: 20;
+  pointer-events: none;
+  animation: drawer-slide-up 260ms cubic-bezier(.2,.8,.2,1);
+}
+
+@keyframes drawer-slide-up {
+  from { transform: translateY(100%); }
+  to   { transform: translateY(0); }
+}
+
+.battle-drawer-inner {
+  pointer-events: auto;
+  background-color: #0e2a1c;
+  background-image:
+    linear-gradient(rgba(0, 0, 0, 0.55), rgba(0, 0, 0, 0.7)),
+    url('/felt.jpg');
+  background-size: cover;
+  background-position: center;
+  border-top: 1px solid rgba(255, 255, 255, 0.15);
+  border-right: 1px solid var(--border);
+  box-shadow: 0 -12px 40px rgba(0, 0, 0, 0.5);
+  padding: 14px 24px 18px;
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  color: var(--text);
+  min-height: 130px;
+  max-height: 32vh;
+  overflow: hidden;
+}
+
+.battle-drawer-header {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 200px;
+  flex-shrink: 0;
+}
+.battle-drawer-header h3 { margin: 0; font-size: 15px; letter-spacing: 0.02em; }
+.battle-drawer-header .muted { color: #c7d2e5; font-size: 13px; }
+.battle-drawer-outcome {
+  font-size: 13px;
+  color: #e6ecf5;
+  margin-top: 4px;
+  font-weight: 600;
+}
+
+/* ---------- horizontal scrolling dice row (grid, never wraps) ---------- */
+.dice-pairs {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: max-content;
+  align-items: center;
+  gap: 10px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 4px 8px 10px;
+  scroll-behavior: smooth;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.28) transparent;
+}
+.dice-pairs::-webkit-scrollbar { height: 8px; }
+.dice-pairs::-webkit-scrollbar-track { background: transparent; }
+.dice-pairs::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.22);
+  border-radius: 4px;
+}
+.dice-pairs::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.35); }
+
+.pair {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: max-content;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 12px;
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.32);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  transition: background 0.2s;
+}
+.pair.attacker { background: rgba(29, 78, 216, 0.32); border-color: rgba(96, 165, 250, 0.5); }
+.pair.defender { background: rgba(185, 28, 28, 0.32); border-color: rgba(248, 113, 113, 0.5); }
+.pair.tie     { background: rgba(148, 163, 184, 0.22); border-color: rgba(203, 213, 225, 0.4); }
+
+.pair .vs {
+  color: #c7d2e5;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  text-align: center;
+}
+
+.pair .out {
+  font-weight: 700;
+  font-size: 18px;
+  width: 24px;
+  text-align: center;
+}
+.pair .out.attacker { color: #4ade80; }
+.pair .out.defender { color: #f87171; }
+.pair .out.tie      { color: #cbd5e1; }
+
+/* ---------- continue button ---------- */
+.battle-drawer-inner > button {
+  align-self: center;
+  min-width: 110px;
+  flex-shrink: 0;
+}
