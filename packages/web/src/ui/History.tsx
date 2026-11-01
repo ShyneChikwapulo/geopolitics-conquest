@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { getCountry } from '@conquest/data';
 import { DIFFICULTIES } from '@conquest/engine';
+import { countByFilter, filterGames, GAME_FILTERS, type GameFilter } from '../game/historyFilter';
 import { shareUrl } from '../game/share';
 import type { GameStore } from '../game/store/GameStore';
 import type { GameRow } from '../game/types';
@@ -19,6 +20,7 @@ export function History({ store, onBack, onResume, onReplay }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [confirm, setConfirm] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [filter, setFilter] = useState<GameFilter>('all');
 
   const load = (): void => {
     if (!store) return;
@@ -45,6 +47,9 @@ export function History({ store, onBack, onResume, onReplay }: Props) {
     }
   };
 
+  const visible = rows ? filterGames(rows, filter) : [];
+  const counts = countByFilter(rows ?? []);
+
   return (
     <div className="page">
       <div className="page-inner">
@@ -57,9 +62,19 @@ export function History({ store, onBack, onResume, onReplay }: Props) {
         <section className="card">
           {error && <p className="form-error" role="alert">{error}</p>}
           {rows === null && !error && <p className="empty"><span className="spinner" /> Loading…</p>}
+          {rows !== null && rows.length > 0 && (
+            <div className="filter-tabs" role="group" aria-label="Filter games">
+              {GAME_FILTERS.map((f) => (
+                <button key={f.id} className="filter-tab" aria-pressed={filter === f.id} onClick={() => setFilter(f.id)}>
+                  {f.label} <span className="filter-count">{counts[f.id]}</span>
+                </button>
+              ))}
+            </div>
+          )}
           {rows?.length === 0 && <p className="empty">You have not played any games yet.</p>}
+          {rows !== null && rows.length > 0 && visible.length === 0 && <p className="empty">No games match this filter.</p>}
           <div className="game-rows">
-            {rows?.map((r) => {
+            {visible.map((r) => {
               const c = getCountry(r.humanCode);
               const result = r.status === 'active' ? { cls: 'active', text: 'In progress' } : r.summary?.humanWon ? { cls: 'won', text: 'Won' } : { cls: 'lost', text: 'Lost' };
               return (
