@@ -1,0 +1,50 @@
+flowchart TB
+  subgraph Browser["Browser: React 18 + Vite"]
+    UI["Screens: Splash, Menu, Game, Replay, Watch, History, Analytics"]
+    Loop["Game loop: useGame and the playback queue"]
+    Map["World map (Natural Earth) and battle drawer (3-D dice)"]
+    AIc["AI client: commentary, fact checker, strategist advisor"]
+    Auth["Sign-in state"]
+    UI --> Loop
+    Loop --> Map
+    Loop --> AIc
+    UI --> Auth
+  end
+  subgraph Engine["@conquest/engine: pure TypeScript, no UI, no network"]
+    Rules["Validate and apply each action"]
+    Rng["Seeded Rng"]
+    Brain["NPC brain, profiles, difficulty, odds"]
+    View["Event-sourced board view: one reducer"]
+    Brain --> Rules
+    Rules --> Rng
+  end
+  Data["@conquest/data: countries and population tiers"]
+  subgraph Persist["Persistence behind the GameStore interface"]
+    Store["GameStore"]
+    FS["Firestore store"]
+    LS["Local store (dev guest)"]
+    Store --> FS
+    Store --> LS
+  end
+  subgraph Cloud["Firebase"]
+    FAuth["Authentication: email and password"]
+    DB[("Firestore: games and events")]
+    FRules["firestore.rules"]
+    DB --- FRules
+  end
+  subgraph LLM["AI services"]
+    Proxy["Cloudflare Worker proxy that holds the key"]
+    OR["OpenRouter model"]
+    Proxy --> OR
+  end
+  Loop -->|"actions"| Rules
+  Rules -->|"state and events"| Loop
+  Loop -->|"NPC turns"| Brain
+  Loop --> View
+  Data --> Rules
+  Loop -->|"commit before reveal"| Store
+  FS --> DB
+  Auth --> FAuth
+  AIc -->|"facts only"| Proxy
+  Spectators["Spectators: read-only share link"] -->|"watch"| DB
+  Host["Render static hosting"] -.->|"serves"| Browser

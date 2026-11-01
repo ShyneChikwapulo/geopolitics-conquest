@@ -1,0 +1,16 @@
+sequenceDiagram
+  actor P as Player
+  participant UI as React UI
+  participant E as Engine
+  participant S as GameStore
+  participant F as Firestore
+  participant V as Spectator
+  P->>UI: Choose an attack
+  UI->>E: validate, then apply the action
+  E-->>UI: new state and events
+  UI->>S: commit state and events
+  S->>F: one atomic batch
+  F-->>S: saved
+  S-->>UI: saved
+  UI->>UI: play the events back step by step
+  F-->>V: live snapshot and new events
