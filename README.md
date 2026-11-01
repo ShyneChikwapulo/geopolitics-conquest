@@ -16,7 +16,7 @@ OpenRouter LLM (optional) · Vitest. Hosted as a static site (Render) plus Fireb
 
 | | |
 |---|---|
-| Live site | REPLACE_ME (for example https://geopolitics-conquest.onrender.com) |
+| Live site |  https://geopolitics-conquest.onrender.com |
 | Demo login | email: John@gmail.com / password: 123456 (a throwaway account created for marking) |
 | Database | Firebase project `geopolitics-conquest` (Firestore). Viewer access is granted to whom it may cocern. |
 | Source | the submitted zip, or https://github.com/ShyneChikwapulo/geopolitics-conquest (GitHub URL, if the repository is shared) |
