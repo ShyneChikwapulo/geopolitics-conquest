@@ -4,5 +4,16 @@ compatibility_date = "2024-11-01"
 
 [vars]
 MODEL = "openrouter/free"
+# Provider chain (see worker.js). Model names change over time: check them if a provider keeps failing.
+OPENROUTER_MODELS = "openrouter/free"
+WORKERS_AI_MODEL = "@cf/meta/llama-3.1-8b-instruct"
+GEMINI_MODELS = "gemini-3.5-flash-lite,gemini-3.1-flash-lite"
+PROVIDER_ORDER = "openrouter,workers-ai,gemini"
 ALLOWED_ORIGINS = "https://geopolitics-conquest.onrender.com,http://localhost:5173"
-# Add your deployed origin, then: npx wrangler secret put OPENROUTER_KEY
+# Secrets (never in this file):
+#   npx wrangler secret put OPENROUTER_KEY
+#   npx wrangler secret put GEMINI_KEY
+
+# Cloudflare Workers AI needs no key, only this binding.
+[ai]
+binding = "AI"
