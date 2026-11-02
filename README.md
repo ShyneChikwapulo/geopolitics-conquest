@@ -162,6 +162,25 @@ On purpose, the rules are functions on immutable data rather than a large `Game`
 every state transition a pure, testable step and makes the event log, replay and spectator view possible: one event reducer
 serves the live game, the spectator and the replay, so they cannot disagree.
 
+## AI provider fallbacks
+
+All AI calls (battle commentary, the strategist advisor and "explain this decision") go through a small Cloudflare
+Worker, `infra/llm-proxy`, which keeps every key off the browser. It tries providers in order until one returns real
+text:
+
+| Order | Provider | Why it is there |
+|---|---|---|
+| 1 | OpenRouter (free models) | the primary model service |
+| 2 | Cloudflare Workers AI | needs no key and has its own free daily allowance, so it is independent of OpenRouter's quota |
+| 3 | Google Gemini (Flash-Lite) | a second, separate free quota |
+
+An empty answer counts as a failure, a provider without credentials is skipped, and the browser never chooses a provider
+or a model. If a provider is rate limited or down, the next one answers within the same request. The app also backs off
+for 30 seconds to 2 minutes after repeated failures instead of waiting on a dead service, and the Commentary panel shows
+which provider answered or that the AI is resting. If every provider fails, the game keeps working: commentary falls back
+to the factual match report and the strategist falls back to the built-in heuristic. Only game facts (countries, dice and
+soldier counts) are sent, never personal data. Setup is in [infra/llm-proxy/README.md](infra/llm-proxy/README.md).
+
 ## How the AI is kept honest
 
 The engine decides everything. The LLM never sees an action it could invent: it is handed a JSON of facts and asked to
