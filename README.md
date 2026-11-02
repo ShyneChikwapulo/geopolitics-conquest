@@ -12,7 +12,6 @@ OpenRouter LLM (optional) · Vitest. Hosted as a static site (Render) plus Fireb
 
 ## Live site and marker access
 
-<!-- ADD YOUR DETAILS HERE: replace every REPLACE_ME, then delete this comment. Use a throwaway demo account. -->
 
 | | |
 |---|---|
