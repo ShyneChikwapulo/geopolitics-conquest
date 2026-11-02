@@ -1,4 +1,5 @@
 import type { LlmSettings } from '../config';
+import { canUseAi, recordAiFailure, recordAiSuccess } from './status';
 
 export interface ChatMessage {
   role: 'system' | 'user' | 'assistant';
@@ -43,8 +44,20 @@ function withTimeout(signal: AbortSignal | undefined, ms: number): { signal: Abo
   };
 }
 
+// Back-off applies only to the proxy (the deployed setup). A direct development key never backs off.
+function guard(settings: LlmSettings): void {
+  if (settings.viaProxy && !canUseAi()) throw new Error('AI is resting after repeated failures');
+}
+function noteFailure(settings: LlmSettings, callerSignal: AbortSignal | undefined): void {
+  if (settings.viaProxy && !callerSignal?.aborted) recordAiFailure(); // a game that was closed is not an outage
+}
+function noteSuccess(settings: LlmSettings, res: Response): void {
+  if (settings.viaProxy) recordAiSuccess(res.headers?.get?.('X-AI-Provider') ?? null);
+}
+
 /** One-shot completion. Returns the assistant text. */
 export async function chatComplete(settings: LlmSettings, opts: ChatOptions, fetchImpl: FetchLike = fetch): Promise<string> {
+  guard(settings);
   const t = withTimeout(opts.signal, opts.timeoutMs ?? 12_000);
   try {
     const res = await fetchImpl(settings.endpoint, {
@@ -61,7 +74,13 @@ export async function chatComplete(settings: LlmSettings, opts: ChatOptions, fet
     });
     if (!res.ok) throw new Error(`LLM request failed (${res.status})`);
     const data = (await res.json()) as { choices?: Array<{ message?: { content?: string } }> };
-    return (data.choices?.[0]?.message?.content ?? '').trim();
+    const text = (data.choices?.[0]?.message?.content ?? '').trim();
+    if (text) noteSuccess(settings, res);
+    else noteFailure(settings, opts.signal);
+    return text;
+  } catch (err) {
+    noteFailure(settings, opts.signal);
+    throw err;
   } finally {
     t.done();
   }
@@ -74,6 +93,7 @@ export async function chatStream(
   onText: (textSoFar: string) => void,
   fetchImpl: FetchLike = fetch,
 ): Promise<string> {
+  guard(settings);
   const t = withTimeout(opts.signal, opts.timeoutMs ?? 15_000);
   try {
     const res = await fetchImpl(settings.endpoint, {
@@ -121,7 +141,12 @@ export async function chatStream(
         }
       }
     }
+    if (text.trim()) noteSuccess(settings, res);
+    else noteFailure(settings, opts.signal);
     return text.trim();
+  } catch (err) {
+    noteFailure(settings, opts.signal);
+    throw err;
   } finally {
     t.done();
   }
