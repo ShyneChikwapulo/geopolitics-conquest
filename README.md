@@ -47,52 +47,42 @@ graphics/animation (#4).
 ## Screenshots
 
 ### Splash screen
-<!-- SCREENSHOT: save as docs/images/01-splash.png (the title page, before pressing Enter) -->
 ![Splash screen](docs/images/01-splash.png)
 The title page: brand, headline, etched world with unit markers, and the Enter button.
 
 ### Menu
-<!-- SCREENSHOT: save as docs/images/02-menu.png (country picker with a country selected and difficulty chosen) -->
 ![Menu](docs/images/02-menu.png)
 Pick any country from the world list (searchable), choose Easy, Medium or Hard, and start. Nine random rivals fill the board.
 
 ### In-game board
-<!-- SCREENSHOT: save as docs/images/03-game.png (mid-game, map with all ten badges and the action dock visible) -->
 ![In-game board](docs/images/03-game.png)
 Every country and its soldier count is always visible. The action dock under the map holds the reinforcement, attack and transfer controls.
 
 ### Battle with live commentary
-<!-- SCREENSHOT: save as docs/images/04-battle.png (the battle drawer open with dice showing and a commentary line) -->
 ![Battle drawer](docs/images/04-battle.png)
 Dice are rolled in pairs, soldier against soldier. The drawer shows each roll, the losses and the outcome, with AI commentary.
 
 ### Rival decisions with justifications
-<!-- SCREENSHOT: save as docs/images/05-decisions.png (the sidebar Rival decisions panel with a few entries) -->
 ![Rival decisions](docs/images/05-decisions.png)
 Every NPC decision is listed with its reason, including while fast-forwarding. Decisions made by the AI strategist are labelled.
 
 ### Rules
-<!-- SCREENSHOT: save as docs/images/06-rules.png (the How to play popup) -->
 ![Rules popup](docs/images/06-rules.png)
 The rules are one click away from the menu and from inside a game.
 
 ### My games (with filter)
-<!-- SCREENSHOT: save as docs/images/07-my-games.png (the list with the filter tabs, ideally on Won or In progress) -->
 ![My games](docs/images/07-my-games.png)
 Every game you have played, filterable by All, In progress, Won and Lost. Resume, replay, share or delete from here.
 
 ### Replay
-<!-- SCREENSHOT: save as docs/images/08-replay.png (a replay paused mid-game with the controls visible) -->
 ![Replay](docs/images/08-replay.png)
 Any game can be replayed turn by turn or battle by battle. Dice are reproduced exactly because the random generator is seeded.
 
 ### Analytics
-<!-- SCREENSHOT: save as docs/images/09-analytics.png (the Analytics screen with personal and platform sections) -->
 ![Analytics](docs/images/09-analytics.png)
 Your own results and the platform as a whole: games finished, win rates and results by difficulty.
 
 ### Spectator view
-<!-- SCREENSHOT: save as docs/images/10-spectator.png (the shared link opened in a private window, showing the live banner) -->
 ![Spectator view](docs/images/10-spectator.png)
 Anyone with the link can watch a game live without signing in. Only the signed-in owner can play.
 
